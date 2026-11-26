@@ -3,51 +3,13 @@
 import { useRef, useState, type FormEvent } from "react";
 import { CircleAlert, ImagePlus, Plus, Trash2 } from "lucide-react";
 
+import { createSellerProduct, type SellerProductPayload } from "@/lib/api/product/create-seller-product";
+
 type ProductVariantDraft = {
   id: number;
   size: string;
   color: string;
   stock: string;
-};
-
-type ProductPayload = {
-  sellerId: string;
-  name: string;
-  slug: string;
-  description: string;
-  categoryId: string;
-  brand: string;
-  sku: string;
-  images: {
-    thumbnail: string;
-    gallery: string[];
-  };
-  pricing: {
-    price: number;
-    discountPrice: number;
-  };
-  variants: Array<{
-    size: string;
-    color: string;
-    stock: number;
-  }>;
-  details: {
-    material: string;
-    gender: string;
-    season: string;
-    weight: number;
-  };
-  shipping: {
-    freeShipping: boolean;
-    deliveryCharge: number;
-  };
-  status: "pending";
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type SellerAddProductFormProps = {
-  sellerId: string;
 };
 
 function slugify(value: string) {
@@ -70,7 +32,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const fieldClassName =
   "mt-2 h-11 w-full rounded-xl border border-[#d8ddd8] bg-white px-3 text-sm text-[#26332c] outline-none transition-colors placeholder:text-[#9aa39c] focus:border-[#1d2c27] focus:ring-2 focus:ring-[#1d2c27]/10";
 
-export function SellerAddProductForm({ sellerId }: SellerAddProductFormProps) {
+export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -88,18 +50,20 @@ export function SellerAddProductForm({ sellerId }: SellerAddProductFormProps) {
   const [weight, setWeight] = useState("");
   const [freeShipping, setFreeShipping] = useState(false);
   const [deliveryCharge, setDeliveryCharge] = useState("80");
-  const [payload, setPayload] = useState<ProductPayload | null>(null);
+  const [payload, setPayload] = useState<SellerProductPayload | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const nextVariantId = useRef(1);
 
   function updateVariant(id: number, field: "size" | "color" | "stock", value: string) {
     setVariants((current) => current.map((variant) => (variant.id === id ? { ...variant, [field]: value } : variant)));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const now = new Date();
-    const productPayload: ProductPayload = {
+    const now = new Date().toISOString();
+    const productPayload: SellerProductPayload = {
       sellerId,
       name: name.trim(),
       slug: slugify(slug),
@@ -135,15 +99,28 @@ export function SellerAddProductForm({ sellerId }: SellerAddProductFormProps) {
       updatedAt: now,
     };
 
-    console.log("Product payload preview:", productPayload);
-    setPayload(productPayload);
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setPayload(null);
+
+    try {
+      const response = await createSellerProduct(productPayload);
+      console.log("Seller product API response:", response);
+      setPayload(productPayload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create product.";
+      console.error("Product creation failed:", error);
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-start gap-2 rounded-xl bg-[#f4f1e8] px-4 py-3 text-sm text-[#766641]">
         <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <p>Preview only: this product payload will be shown in the console, not saved to the database.</p>
+        <p>Products are submitted for review and saved with pending status.</p>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]">
@@ -281,7 +258,7 @@ export function SellerAddProductForm({ sellerId }: SellerAddProductFormProps) {
             </div>
             <div className="mt-4 flex items-start gap-2 rounded-xl bg-[#edf0ec] px-3 py-2.5 text-xs leading-5 text-[#69736c]">
               <ImagePlus aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              Use public image URLs; file uploads are not connected in preview mode.
+              Use public image URLs; file uploads are not connected yet.
             </div>
           </section>
 
@@ -314,16 +291,22 @@ export function SellerAddProductForm({ sellerId }: SellerAddProductFormProps) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e1e4df] bg-[#f9faf8] p-4 sm:px-6">
-        <p className="text-sm text-[#788079]">Preview will print the exact product object in the browser console.</p>
-        <button type="submit" className="h-11 rounded-full bg-[#1d2c27] px-6 text-sm font-medium text-white transition-colors hover:bg-[#344a42] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
-          Preview product payload
+        <p className="text-sm text-[#788079]">Your seller ID and pending status are set securely by the server.</p>
+        <button type="submit" disabled={isSubmitting} className="h-11 rounded-full bg-[#1d2c27] px-6 text-sm font-medium text-white transition-colors hover:bg-[#344a42] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27] disabled:cursor-wait disabled:opacity-60">
+          {isSubmitting ? "Creating product…" : "Create product"}
         </button>
       </div>
 
+      {submitError ? (
+        <p role="alert" className="rounded-xl border border-[#e4c3bf] bg-[#fbf2f1] px-4 py-3 text-sm text-[#8b3e36]">
+          {submitError}
+        </p>
+      ) : null}
+
       {payload ? (
         <section aria-live="polite" className="rounded-3xl border border-[#b8c8bb] bg-[#f3f7f3] p-5 sm:p-7">
-          <h2 className="text-lg font-semibold text-[#1d2c27]">Product payload ready</h2>
-          <p className="mt-1 text-sm text-[#69736c]">This preview is not saved. Connect a product API to persist it.</p>
+          <h2 className="text-lg font-semibold text-[#1d2c27]">Product created successfully</h2>
+          <p className="mt-1 text-sm text-[#69736c]">Your product is saved and waiting for review.</p>
           <pre className="mt-4 max-h-[28rem] overflow-auto rounded-2xl bg-[#17241f] p-4 text-xs leading-5 text-[#e2e8e3]">{JSON.stringify(payload, null, 2)}</pre>
         </section>
       ) : null}
