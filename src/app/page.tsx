@@ -1,6 +1,7 @@
 import { HeroSection } from "@/components/home/hero-section";
 import { Navbar } from "@/components/home/navbar";
 import { NewArrivals } from "@/components/home/new-arrivals";
+import { OfferSection } from "@/components/home/offer-section";
 import { PrivateDispatch } from "@/components/home/private-dispatch";
 import { TrendingNow } from "@/components/home/trending-now";
 
@@ -14,6 +15,7 @@ export default function Home() {
       <NewArrivals />
       <TrendingNow />
       <PrivateDispatch />
+      <OfferSection />
     </main>
   );
 }
