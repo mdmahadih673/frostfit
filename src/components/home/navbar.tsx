@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { NavbarAccount } from "./navbar-account";
+
 const navItems = [
   { label: "Home", href: "#top" },
   { label: "All Product", href: "/all-products" },
@@ -21,14 +23,7 @@ export function Navbar() {
           </Link>
         ))}
       </nav>
-      <div className="flex items-center gap-3 sm:gap-4">
-        <Link href="/sign-in" className="caption-4 text-[#3f413e] transition-colors duration-300 hover:text-[#1d2c27] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
-          Sign in
-        </Link>
-        <Link href="/sign-up" className="hidden caption-4 rounded-full border border-[#1d2c27] px-3 py-2 text-[#1d2c27] transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[#1d2c27] hover:text-white active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27] sm:inline-flex">
-          Sign up
-        </Link>
-      </div>
+      <NavbarAccount />
     </header>
   );
 }
