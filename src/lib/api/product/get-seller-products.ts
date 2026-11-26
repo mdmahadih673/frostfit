@@ -1,7 +1,8 @@
 import type { SellerProductPayload } from "./create-seller-product";
 
-export type SellerProduct = SellerProductPayload & {
+export type SellerProduct = Omit<SellerProductPayload, "status"> & {
   _id: string;
+  status: string;
 };
 
 const SELLER_PRODUCTS_API_URL = "http://localhost:5000/seller-products";
@@ -84,6 +85,18 @@ export async function getAllProducts(): Promise<SellerProduct[]> {
   }
 
   return responseBody.products as SellerProduct[];
+}
+
+export async function getProductByIdOrSlug(idOrSlug: string): Promise<SellerProduct | null> {
+  const normalized = decodeURIComponent(idOrSlug).trim();
+  if (!normalized) return null;
+
+  const products = await getAllProducts();
+  return (
+    products.find(
+      (product) => product._id === normalized || product.slug === normalized,
+    ) ?? null
+  );
 }
 
 async function sendSellerProductRequest(

@@ -85,7 +85,7 @@ export function AllProductsGrid() {
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
       {products.map((product) => (
         <article key={product._id} className="group min-w-0">
-          <Link href={`/all-products?product=${encodeURIComponent(product._id)}`} className="block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
+          <Link href={`/all-products/${encodeURIComponent(product._id)}`} className="block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
             <div className="relative aspect-[4/5] overflow-hidden bg-[#edf0ec]">
               {product.images.thumbnail ? (
                 // Standard img supports seller-supplied external URLs without Next image host configuration.
