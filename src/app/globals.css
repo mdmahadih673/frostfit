@@ -47,8 +47,9 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
-
 :root {
+  --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, monospace;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -127,4 +128,14 @@
   html {
     @apply font-sans;
   }
+}
+
+@layer components {
+  .heading-1 { @apply text-6xl font-semibold leading-none; }
+  .heading-4 { @apply text-3xl font-semibold leading-9; }
+  .title-4 { @apply text-sm font-medium leading-5; }
+  .body-6 { @apply text-sm font-normal leading-5; }
+  .button-sm { @apply text-sm font-semibold leading-5; }
+  .caption-3 { @apply text-xs font-semibold leading-4; }
+  .caption-4 { @apply text-xs font-medium leading-4; }
 }
