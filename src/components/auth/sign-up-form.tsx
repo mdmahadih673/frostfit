@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { SIGN_UP_ROLES, USER_ROLES } from "@/lib/user-roles";
 
+import { useAuthRole } from "./auth-role-context";
 import { FormField, inputClassName, submitButtonClassName } from "./form-field";
 import { PasswordInput } from "./password-input";
 
@@ -14,6 +16,7 @@ export function SignUpForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { role, setRole } = useAuthRole();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -22,31 +25,75 @@ export function SignUpForm() {
     setError(null);
     setIsPending(true);
 
-    const { data, error: signUpError } = await authClient.signUp.email({
+    console.log("Sign-up form submitted:", {
       name,
       email,
-      password,
-      callbackURL: "/",
+      role,
     });
 
-    setIsPending(false);
+    try {
+      const { data, error: signUpError } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        role,
+        callbackURL: "/",
+      });
 
-    if (signUpError) {
-      setError(signUpError.message ?? "Could not create your account. Please try again.");
-      return;
-    }
+      console.log("Sign-up response:", data);
+      console.log("Sign-up error:", signUpError);
 
-    if (data) {
-      router.push("/");
-      router.refresh();
+      if (signUpError) {
+        setError(signUpError.message ?? "Could not create your account. Please try again.");
+        return;
+      }
+
+      if (data) {
+        setPassword("");
+        router.push("/");
+        router.refresh();
+      }
+    } catch (signUpError) {
+      console.error("Sign-up failed:", signUpError);
+      setError("Could not create your account. Please try again.");
+    } finally {
+      setIsPending(false);
     }
   }
 
   return (
     <div>
       <p className="caption-3 uppercase tracking-[0.18em] text-[#6f746e]">Join FrostFit</p>
-      <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.055em] text-balance sm:text-5xl">Create account</h1>
-      <p className="body-6 mt-4 text-pretty text-[#626761]">Save your layers, track orders, and hear about winter drops first.</p>
+      <div role="group" aria-label="Choose account type" className="mt-6 grid grid-cols-2 rounded-full bg-[#e9e9e5] p-1">
+        {SIGN_UP_ROLES.map((signupRole) => {
+          const isSelected = role === signupRole;
+
+          return (
+            <button
+              key={signupRole}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => setRole(signupRole)}
+              className={`caption-4 min-h-11 rounded-full px-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d2c27] ${
+                isSelected ? "bg-[#1d2c27] text-white shadow-sm" : "text-[#626761] hover:text-[#1d2c27]"
+              }`}
+            >
+              {signupRole === USER_ROLES.customer ? "Customer" : "Seller"}
+            </button>
+          );
+        })}
+      </div>
+
+      <section aria-live="polite">
+        <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-[-0.055em] text-balance sm:text-5xl">
+          Create {role === USER_ROLES.customer ? "customer" : "seller"} account
+        </h1>
+        <p className="body-6 mt-4 text-pretty text-[#626761]">
+          {role === USER_ROLES.customer
+            ? "Save your layers, track orders, and hear about winter drops first."
+            : "Create your seller account to showcase your products and manage your store."}
+        </p>
+      </section>
 
       <form onSubmit={handleSubmit} className="mt-9 space-y-5">
         <FormField id="name" label="Full name">
@@ -86,6 +133,7 @@ export function SignUpForm() {
             autoComplete="new-password"
             placeholder="••••••••"
             required
+            minLength={8}
             describedBy="password-hint"
           />
         </FormField>
@@ -106,7 +154,7 @@ export function SignUpForm() {
         </label>
 
         <button type="submit" disabled={isPending} className={`${submitButtonClassName} disabled:cursor-not-allowed disabled:opacity-60`}>
-          {isPending ? "Creating account…" : "Create account"}
+          {isPending ? "Creating account…" : `Create ${role} account`}
         </button>
       </form>
 

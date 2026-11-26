@@ -13,10 +13,11 @@ type PasswordInputProps = {
   autoComplete: string;
   placeholder?: string;
   required?: boolean;
+  minLength?: number;
   describedBy?: string;
 };
 
-export function PasswordInput({ id, name, value, onChange, autoComplete, placeholder, required, describedBy }: PasswordInputProps) {
+export function PasswordInput({ id, name, value, onChange, autoComplete, placeholder, required, minLength, describedBy }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
 
   return (
@@ -30,6 +31,7 @@ export function PasswordInput({ id, name, value, onChange, autoComplete, placeho
         autoComplete={autoComplete}
         placeholder={placeholder}
         required={required}
+        minLength={minLength}
         aria-describedby={describedBy}
         className={`${inputClassName} pr-12`}
       />

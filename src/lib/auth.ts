@@ -1,15 +1,40 @@
+
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 
-const client = new MongoClient("mongodb://localhost:27017/database");
-const db = client.db();
+import { USER_ROLES } from "./user-roles";
+
+const client = new MongoClient(process.env.MONGODB_URL as string);
+const db = client.db('frostfit');
 
 export const auth = betterAuth({
-    emailAndPassword: {
-        enabled: true,
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: USER_ROLES.customer,
+        input: true,
+      },
     },
-    database: mongodbAdapter(db, {
-        client,
+  },
+  emailAndPassword: {
+    enabled: true,
+  },
+  database: mongodbAdapter(db, {
+    client,
+  }),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-up/email" && ctx.body) {
+        ctx.body.role = ctx.body.role === USER_ROLES.seller ? USER_ROLES.seller : USER_ROLES.customer;
+      }
+
+      if (ctx.path === "/update-user" && ctx.body) {
+        delete ctx.body.role;
+      }
     }),
+  },
 });
