@@ -3,7 +3,7 @@ import Link from "next/link";
 import { NavbarAccount } from "./navbar-account";
 
 const navItems = [
-  { label: "Home", href: "#top" },
+  { label: "Home", href: "/" },
   { label: "All Product", href: "/all-products" },
   { label: "Winter", href: "/winter" },
   { label: "Summer", href: "/summer" },

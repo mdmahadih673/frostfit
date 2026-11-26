@@ -55,6 +55,37 @@ export async function getSellerProducts(sellerId: string): Promise<SellerProduct
   return responseBody.products as SellerProduct[];
 }
 
+export async function getAllProducts(): Promise<SellerProduct[]> {
+  const response = await fetch(SELLER_PRODUCTS_API_URL);
+  const responseText = await response.text();
+  let responseBody: unknown = null;
+
+  if (responseText) {
+    try {
+      responseBody = JSON.parse(responseText);
+    } catch {
+      responseBody = responseText;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(responseBody) ?? `Products request failed (${response.status}).`,
+    );
+  }
+
+  if (
+    typeof responseBody !== "object" ||
+    responseBody === null ||
+    !("products" in responseBody) ||
+    !Array.isArray(responseBody.products)
+  ) {
+    throw new Error("Products response is invalid.");
+  }
+
+  return responseBody.products as SellerProduct[];
+}
+
 async function sendSellerProductRequest(
   productId: string,
   sellerId: string,

@@ -133,6 +133,7 @@
 @layer components {
   .heading-1 { @apply text-6xl font-semibold leading-none; }
   .heading-4 { @apply text-3xl font-semibold leading-9; }
+  .title-3 { @apply text-base font-medium leading-6; }
   .title-4 { @apply text-sm font-medium leading-5; }
   .body-6 { @apply text-sm font-normal leading-5; }
   .button-sm { @apply text-sm font-semibold leading-5; }
