@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, PackageOpen, RefreshCw } from "lucide-react";
 
 import {
   getAllProducts,
   type SellerProduct,
 } from "@/lib/api/product/get-seller-products";
+
+type AllProductsGridProps = {
+  season?: "Winter" | "Summer";
+};
 
 function productPrice(product: SellerProduct) {
   const price = product.pricing.discountPrice || product.pricing.price;
@@ -17,7 +21,7 @@ function productPrice(product: SellerProduct) {
   });
 }
 
-export function AllProductsGrid() {
+export function AllProductsGrid({ season }: AllProductsGridProps = {}) {
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +60,15 @@ export function AllProductsGrid() {
     };
   }, []);
 
+  const visibleProducts = useMemo(() => {
+    if (!season) return products;
+    const normalizedSeason = season.trim().toLowerCase();
+    return products.filter(
+      (product) =>
+        product.details?.season?.trim().toLowerCase() === normalizedSeason,
+    );
+  }, [products, season]);
+
   if (isLoading) {
     return <p className="body-6 py-16 text-center text-[#6f746e]">Loading products…</p>;
   }
@@ -71,11 +84,13 @@ export function AllProductsGrid() {
     );
   }
 
-  if (!products.length) {
+  if (!visibleProducts.length) {
     return (
       <div className="rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-16 text-center">
         <PackageOpen aria-hidden="true" className="mx-auto size-9 text-[#9aa39c]" />
-        <h2 className="title-3 mt-4 text-[#1d2c27]">No products available</h2>
+        <h2 className="title-3 mt-4 text-[#1d2c27]">
+          {season ? `No ${season.toLowerCase()} products available` : "No products available"}
+        </h2>
         <p className="body-6 mt-2 text-[#69736c]">Check back soon for the latest FrostFit arrivals.</p>
       </div>
     );
@@ -83,7 +98,7 @@ export function AllProductsGrid() {
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-      {products.map((product) => (
+      {visibleProducts.map((product) => (
         <article key={product._id} className="group min-w-0">
           <Link href={`/all-products/${encodeURIComponent(product._id)}`} className="block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
             <div className="relative aspect-[4/5] overflow-hidden bg-[#edf0ec]">
