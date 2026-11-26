@@ -1,20 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   ArrowUpRight,
+  CheckCircle2,
   Compass,
   Heart,
   LayoutDashboard,
   MapPin,
   Package,
+  RefreshCw,
   ShoppingBag,
   Sparkles,
+  Trash2,
   UserRound,
 } from "lucide-react";
 
 import { Navbar } from "@/components/home/navbar";
+import {
+  getCustomerOrders,
+  type CustomerOrder,
+} from "@/lib/api/customer/orders";
+import {
+  getSavedItems,
+  removeSavedItem,
+  type SavedOrderItem,
+} from "@/lib/api/customer/saved-items";
 
 type CustomerTab = "overview" | "orders" | "saved" | "addresses";
 
@@ -35,39 +49,241 @@ const navItems: Array<{
   { id: "addresses", label: "Addresses", icon: MapPin },
 ];
 
-const summaryStats = [
-  {
-    label: "Active orders",
-    value: "0",
-    note: "No orders in transit",
-    icon: Package,
-  },
-  {
-    label: "Saved items",
-    value: "0",
-    note: "Save layers for later",
-    icon: Heart,
-  },
-  {
-    label: "Completed orders",
-    value: "0",
-    note: "Order history appears here",
-    icon: ShoppingBag,
-  },
-  {
-    label: "Saved addresses",
-    value: "0",
-    note: "Add a delivery address",
-    icon: MapPin,
-  },
-];
+function formatPrice(value: number) {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDate(value?: string) {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export function CustomerDashboard({
   name,
   email,
   role,
 }: CustomerDashboardProps) {
-  const [activeTab, setActiveTab] = useState<CustomerTab>("overview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const activeTab: CustomerTab =
+    tabParam === "orders" || tabParam === "saved" || tabParam === "addresses"
+      ? tabParam
+      : "overview";
+
+  const [savedItems, setSavedItems] = useState<SavedOrderItem[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(true);
+  const [savedError, setSavedError] = useState<string | null>(null);
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  const orderedJustNow = searchParams.get("ordered") === "1";
+
+  const setActiveTab = (tab: CustomerTab) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tab);
+    }
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const loadSavedItems = async () => {
+    setIsLoadingSaved(true);
+    setSavedError(null);
+
+    try {
+      setSavedItems(await getSavedItems());
+    } catch (requestError) {
+      setSavedError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to load saved items.",
+      );
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  };
+
+  const loadOrders = async () => {
+    setIsLoadingOrders(true);
+    setOrdersError(null);
+
+    try {
+      setOrders(await getCustomerOrders());
+    } catch (requestError) {
+      setOrdersError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to load orders.",
+      );
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    getSavedItems()
+      .then((items) => {
+        if (isCurrent) setSavedItems(items);
+      })
+      .catch((requestError) => {
+        if (isCurrent) {
+          setSavedError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load saved items.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingSaved(false);
+      });
+
+    getCustomerOrders()
+      .then((allOrders) => {
+        if (isCurrent) setOrders(allOrders);
+      })
+      .catch((requestError) => {
+        if (isCurrent) {
+          setOrdersError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load orders.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingOrders(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  const validSelectedIds = useMemo(() => {
+    const existingIds = new Set(savedItems.map((item) => item._id));
+    return selectedIds.filter((id) => existingIds.has(id));
+  }, [savedItems, selectedIds]);
+
+  const allSelected =
+    savedItems.length > 0 && validSelectedIds.length === savedItems.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(savedItems.map((item) => item._id));
+    }
+  };
+
+  const toggleSelectItem = (itemId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId],
+    );
+  };
+
+  const handleRemoveSavedItem = async (itemId: string) => {
+    setRemovingItemId(itemId);
+    try {
+      await removeSavedItem(itemId);
+      setSavedItems((prev) => prev.filter((item) => item._id !== itemId));
+      setSelectedIds((prev) => prev.filter((id) => id !== itemId));
+    } catch (requestError) {
+      setSavedError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not remove item.",
+      );
+    } finally {
+      setRemovingItemId(null);
+    }
+  };
+
+  const handleOrderNow = () => {
+    if (!validSelectedIds.length) return;
+    router.push(`/checkout?items=${encodeURIComponent(validSelectedIds.join(","))}`);
+  };
+
+  const savedItemsTotal = savedItems.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  );
+
+  const selectedSubtotal = useMemo(() => {
+    const selectedSet = new Set(validSelectedIds);
+    return savedItems
+      .filter((item) => selectedSet.has(item._id))
+      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  }, [savedItems, validSelectedIds]);
+
+  const activeOrdersCount = orders.filter(
+    (order) => order.status !== "delivered" && order.status !== "cancelled",
+  ).length;
+  const completedOrdersCount = orders.filter(
+    (order) => order.status === "delivered",
+  ).length;
+
+  const summaryStats = [
+    {
+      label: "Active orders",
+      value: isLoadingOrders ? "—" : String(activeOrdersCount),
+      note:
+        activeOrdersCount > 0
+          ? `${activeOrdersCount} awaiting fulfillment`
+          : "No orders in transit",
+      icon: Package,
+    },
+    {
+      label: "Saved items",
+      value: isLoadingSaved ? "—" : String(savedItems.length),
+      note:
+        savedItems.length > 0
+          ? `Total ${formatPrice(savedItemsTotal)}`
+          : "Save layers for later",
+      icon: Heart,
+    },
+    {
+      label: "Completed orders",
+      value: isLoadingOrders ? "—" : String(completedOrdersCount),
+      note:
+        orders.length > 0
+          ? `${orders.length} total order${orders.length > 1 ? "s" : ""}`
+          : "Order history appears here",
+      icon: ShoppingBag,
+    },
+    {
+      label: "Saved addresses",
+      value: "0",
+      note: "Add a delivery address",
+      icon: MapPin,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#f1f2ef] text-[#18231f]">
@@ -91,20 +307,40 @@ export function CustomerDashboard({
           >
             {navItems.map(({ id, label, icon: Icon }) => {
               const isActive = activeTab === id;
+              const badgeCount =
+                id === "saved"
+                  ? savedItems.length
+                  : id === "orders"
+                    ? orders.length
+                    : 0;
+
               return (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setActiveTab(id)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d2c27] ${
+                  className={`flex min-h-10 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d2c27] ${
                     isActive
                       ? "bg-[#1d2c27] font-medium text-white"
                       : "text-[#626b64] hover:bg-[#edf0ec] hover:text-[#1d2c27]"
                   }`}
                 >
-                  <Icon aria-hidden="true" className="size-4 shrink-0" />
-                  <span>{label}</span>
+                  <span className="flex items-center gap-2">
+                    <Icon aria-hidden="true" className="size-4 shrink-0" />
+                    <span>{label}</span>
+                  </span>
+                  {badgeCount > 0 && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-[#e3e7e2] text-[#1d2c27]"
+                      }`}
+                    >
+                      {badgeCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -209,38 +445,59 @@ export function CustomerDashboard({
                   <div className="flex items-end justify-between gap-4">
                     <div>
                       <p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">
-                        Orders
+                        Saved for order
                       </p>
                       <h2 className="mt-2 text-2xl font-semibold tracking-[-0.045em] text-[#1d2c27]">
-                        Recent orders
+                        Saved items
                       </h2>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveTab("orders")}
+                      onClick={() => setActiveTab("saved")}
                       className="inline-flex items-center gap-1 text-sm font-medium text-[#1d2c27] hover:underline"
                     >
-                      View all <ArrowUpRight aria-hidden="true" className="size-4" />
+                      View table{" "}
+                      <ArrowUpRight aria-hidden="true" className="size-4" />
                     </button>
                   </div>
-                  <div className="mt-5 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-9 text-center">
-                    <ShoppingBag
-                      aria-hidden="true"
-                      className="mx-auto size-7 text-[#9aa39c]"
-                    />
-                    <p className="mt-3 text-sm font-medium text-[#1d2c27]">
-                      No orders placed yet
-                    </p>
-                    <p className="mt-1 text-sm text-[#788079]">
-                      Once you place an order, tracking updates will appear here.
-                    </p>
-                    <Link
-                      href="/all-products"
-                      className="mt-4 inline-flex text-sm font-medium text-[#1d2c27] underline underline-offset-4"
-                    >
-                      Shop all products
-                    </Link>
-                  </div>
+
+                  {savedItems.length > 0 ? (
+                    <div className="mt-5 space-y-2.5">
+                      {savedItems.slice(0, 3).map((item) => (
+                        <div
+                          key={item._id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-[#e1e4df] bg-white px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-[#1d2c27]">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-[#6f746e]">
+                              {item.size || "—"} / {item.color || "—"} ×{" "}
+                              {item.quantity}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-medium text-[#1d2c27]">
+                            {formatPrice(item.unitPrice * item.quantity)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-9 text-center">
+                      <Heart
+                        aria-hidden="true"
+                        className="mx-auto size-7 text-[#9aa39c]"
+                      />
+                      <p className="mt-3 text-sm font-medium text-[#1d2c27]">
+                        No saved items yet
+                      </p>
+                      <p className="mt-1 text-sm text-[#788079]">
+                        Click &ldquo;Select for order&rdquo; on any product to
+                        save it here.
+                      </p>
+                    </div>
+                  )}
                 </article>
 
                 <article className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-6 sm:p-8">
@@ -257,7 +514,8 @@ export function CustomerDashboard({
                       href="/profile"
                       className="inline-flex items-center gap-1 text-sm font-medium text-[#1d2c27] hover:underline"
                     >
-                      Profile <ArrowUpRight aria-hidden="true" className="size-4" />
+                      Profile{" "}
+                      <ArrowUpRight aria-hidden="true" className="size-4" />
                     </Link>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -308,56 +566,324 @@ export function CustomerDashboard({
               <p className="body-6 mt-2 text-[#69736c]">
                 View your recent purchases and delivery status.
               </p>
-              <div className="mt-6 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-14 text-center">
-                <ShoppingBag
-                  aria-hidden="true"
-                  className="mx-auto size-8 text-[#9aa39c]"
-                />
-                <p className="mt-3 text-sm font-medium text-[#1d2c27]">
-                  You have no orders yet
+
+              {orderedJustNow && (
+                <div className="mt-5 flex items-center gap-2 rounded-2xl border border-[#cde0d3] bg-[#eff7f1] px-4 py-3 text-sm font-medium text-[#1d462b]">
+                  <CheckCircle2 aria-hidden="true" className="size-4 shrink-0" />
+                  <span>Your order has been placed successfully!</span>
+                </div>
+              )}
+
+              {isLoadingOrders ? (
+                <p className="body-6 py-12 text-center text-[#6f746e]">
+                  Loading orders…
                 </p>
-                <p className="mt-1 text-sm text-[#788079]">
-                  Browse the collection to find your next winter or summer layer.
-                </p>
-                <Link
-                  href="/all-products"
-                  className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
-                >
-                  Browse products
-                </Link>
-              </div>
+              ) : ordersError ? (
+                <div className="mt-6 rounded-2xl border border-[#e6d7d4] bg-[#fffaf9] px-5 py-10 text-center">
+                  <AlertCircle
+                    aria-hidden="true"
+                    className="mx-auto size-7 text-[#a94e42]"
+                  />
+                  <p className="mt-3 text-sm font-medium text-[#5f2e28]">
+                    Could not load orders
+                  </p>
+                  <p className="mt-1 text-sm text-[#8b5a52]">{ordersError}</p>
+                  <button
+                    type="button"
+                    onClick={loadOrders}
+                    className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
+                  >
+                    <RefreshCw aria-hidden="true" className="size-4" />
+                    Try again
+                  </button>
+                </div>
+              ) : !orders.length ? (
+                <div className="mt-6 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-14 text-center">
+                  <ShoppingBag
+                    aria-hidden="true"
+                    className="mx-auto size-8 text-[#9aa39c]"
+                  />
+                  <p className="mt-3 text-sm font-medium text-[#1d2c27]">
+                    You have no orders yet
+                  </p>
+                  <p className="mt-1 text-sm text-[#788079]">
+                    Select items from Saved items and click &ldquo;Order
+                    now&rdquo; to place an order.
+                  </p>
+                  <Link
+                    href="/all-products"
+                    className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
+                  >
+                    Browse products
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-6 overflow-x-auto rounded-2xl border border-[#e1e4df] bg-white">
+                  <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[#eceee9] bg-[#f9faf8] text-xs font-semibold uppercase tracking-[0.08em] text-[#6f746e]">
+                        <th className="px-4 py-3.5">Order ID</th>
+                        <th className="px-4 py-3.5">Date</th>
+                        <th className="px-4 py-3.5">Items</th>
+                        <th className="px-4 py-3.5">Delivery / Payment</th>
+                        <th className="px-4 py-3.5">Total</th>
+                        <th className="px-4 py-3.5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#eef0ec]">
+                      {orders.map((order) => (
+                        <tr
+                          key={order._id}
+                          className="transition-colors hover:bg-[#fafbf9]"
+                        >
+                          <td className="px-4 py-3.5 font-mono text-xs font-semibold text-[#1d2c27]">
+                            #{order._id.slice(-6).toUpperCase()}
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-[#536057]">
+                            {formatDate(order.createdAt)}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="space-y-1">
+                              {order.items.map((item, idx) => (
+                                <p
+                                  key={`${order._id}-${item.productId}-${idx}`}
+                                  className="text-xs text-[#151515]"
+                                >
+                                  <span className="font-medium">
+                                    {item.name}
+                                  </span>{" "}
+                                  <span className="text-[#6f746e]">
+                                    ({item.size || "—"} / {item.color || "—"} ×{" "}
+                                    {item.quantity})
+                                  </span>
+                                </p>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-[#536057]">
+                            <p className="font-medium uppercase text-[#1d2c27]">
+                              {order.paymentMethod || "COD"}
+                            </p>
+                            {order.shippingAddress?.city && (
+                              <p className="text-[#6f746e]">
+                                {order.shippingAddress.city}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 font-semibold text-[#1d2c27]">
+                            {formatPrice(order.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex rounded-full bg-[#f0ece1] px-2.5 py-1 text-xs font-medium capitalize text-[#6a5a32]">
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           )}
 
           {activeTab === "saved" && (
             <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-6 sm:p-8">
-              <p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">
-                Wishlist
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] text-[#1d2c27]">
-                Saved items
-              </h1>
-              <p className="body-6 mt-2 text-[#69736c]">
-                Keep track of FrostFit pieces you want to revisit.
-              </p>
-              <div className="mt-6 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-14 text-center">
-                <Heart
-                  aria-hidden="true"
-                  className="mx-auto size-8 text-[#9aa39c]"
-                />
-                <p className="mt-3 text-sm font-medium text-[#1d2c27]">
-                  No saved items yet
-                </p>
-                <p className="mt-1 text-sm text-[#788079]">
-                  Explore all products to discover pieces for your wardrobe.
-                </p>
-                <Link
-                  href="/all-products"
-                  className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
-                >
-                  Explore collection
-                </Link>
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">
+                    Selected for order
+                  </p>
+                  <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] text-[#1d2c27]">
+                    Saved items
+                  </h1>
+                  <p className="body-6 mt-2 text-[#69736c]">
+                    Select one or more products below and click Order now.
+                  </p>
+                </div>
+
+                {savedItems.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="rounded-2xl border border-[#e1e4df] bg-white px-4 py-2 text-right">
+                      <p className="caption-4 text-[#6f746e]">
+                        {validSelectedIds.length > 0
+                          ? `Selected (${validSelectedIds.length})`
+                          : "Estimated total"}
+                      </p>
+                      <p className="text-lg font-semibold text-[#1d2c27]">
+                        {formatPrice(
+                          validSelectedIds.length > 0
+                            ? selectedSubtotal
+                            : savedItemsTotal,
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!validSelectedIds.length}
+                      onClick={handleOrderNow}
+                      className="button-sm inline-flex h-12 items-center gap-2 rounded-full bg-[#1d2c27] px-6 text-white transition duration-300 hover:bg-[#344a42] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#9aa39c]"
+                    >
+                      <ShoppingBag aria-hidden="true" className="size-4" />
+                      {validSelectedIds.length > 0
+                        ? `Order now (${validSelectedIds.length})`
+                        : "Order now"}
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {isLoadingSaved ? (
+                <p className="body-6 py-12 text-center text-[#6f746e]">
+                  Loading saved items…
+                </p>
+              ) : savedError ? (
+                <div className="mt-6 rounded-2xl border border-[#e6d7d4] bg-[#fffaf9] px-5 py-10 text-center">
+                  <AlertCircle
+                    aria-hidden="true"
+                    className="mx-auto size-7 text-[#a94e42]"
+                  />
+                  <p className="mt-3 text-sm font-medium text-[#5f2e28]">
+                    Could not load saved items
+                  </p>
+                  <p className="mt-1 text-sm text-[#8b5a52]">{savedError}</p>
+                  <button
+                    type="button"
+                    onClick={loadSavedItems}
+                    className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
+                  >
+                    <RefreshCw aria-hidden="true" className="size-4" />
+                    Try again
+                  </button>
+                </div>
+              ) : !savedItems.length ? (
+                <div className="mt-6 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-14 text-center">
+                  <Heart
+                    aria-hidden="true"
+                    className="mx-auto size-8 text-[#9aa39c]"
+                  />
+                  <p className="mt-3 text-sm font-medium text-[#1d2c27]">
+                    No saved items yet
+                  </p>
+                  <p className="mt-1 text-sm text-[#788079]">
+                    Click &ldquo;Select for order&rdquo; on any product details
+                    page to add it to this table.
+                  </p>
+                  <Link
+                    href="/all-products"
+                    className="button-sm mt-5 inline-flex items-center gap-2 rounded-full bg-[#1d2c27] px-4 py-2 text-white transition hover:bg-[#344a42]"
+                  >
+                    Explore collection
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-6 overflow-x-auto rounded-2xl border border-[#e1e4df] bg-white">
+                  <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[#eceee9] bg-[#f9faf8] text-xs font-semibold uppercase tracking-[0.08em] text-[#6f746e]">
+                        <th className="w-12 px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={toggleSelectAll}
+                            aria-label="Select all saved items"
+                            className="size-4 cursor-pointer accent-[#1d2c27]"
+                          />
+                        </th>
+                        <th className="px-4 py-3.5">Product</th>
+                        <th className="px-4 py-3.5">SKU</th>
+                        <th className="px-4 py-3.5">Variant</th>
+                        <th className="px-4 py-3.5">Qty</th>
+                        <th className="px-4 py-3.5">Unit price</th>
+                        <th className="px-4 py-3.5">Subtotal</th>
+                        <th className="px-4 py-3.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#eef0ec]">
+                      {savedItems.map((item) => {
+                        const isSelected = validSelectedIds.includes(item._id);
+                        return (
+                          <tr
+                            key={item._id}
+                            className={`transition-colors ${
+                              isSelected ? "bg-[#f3f6f4]" : "hover:bg-[#fafbf9]"
+                            }`}
+                          >
+                            <td className="px-4 py-3.5">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelectItem(item._id)}
+                                aria-label={`Select ${item.name} for order`}
+                                className="size-4 cursor-pointer accent-[#1d2c27]"
+                              />
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <Link
+                                href={`/all-products/${encodeURIComponent(item.productId)}`}
+                                className="group flex items-center gap-3"
+                              >
+                                <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-[#edf0ec]">
+                                  {item.thumbnail ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={item.thumbnail}
+                                      alt={item.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : null}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-[#1d2c27] group-hover:underline">
+                                    {item.name}
+                                  </p>
+                                  <p className="truncate text-xs text-[#6f746e]">
+                                    {item.brand}
+                                  </p>
+                                </div>
+                              </Link>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-[#536057]">
+                              {item.sku || "—"}
+                            </td>
+                            <td className="px-4 py-3.5 text-xs text-[#536057]">
+                              <span className="inline-block whitespace-nowrap rounded-full bg-[#edf0ec] px-2.5 py-1 font-medium text-[#1d2c27]">
+                                {item.size || "—"} / {item.color || "—"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 font-medium text-[#151515]">
+                              {item.quantity}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3.5 text-[#536057]">
+                              {formatPrice(item.unitPrice)}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-[#1d2c27]">
+                              {formatPrice(item.unitPrice * item.quantity)}
+                            </td>
+                            <td className="px-4 py-3.5 text-right">
+                              <button
+                                type="button"
+                                disabled={removingItemId === item._id}
+                                onClick={() => handleRemoveSavedItem(item._id)}
+                                aria-label={`Remove ${item.name}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-[#e3d2cf] px-3 py-1.5 text-xs font-medium text-[#9e3f33] transition hover:bg-[#fff5f3] disabled:opacity-50"
+                              >
+                                <Trash2
+                                  aria-hidden="true"
+                                  className="size-3.5"
+                                />
+                                {removingItemId === item._id
+                                  ? "Removing…"
+                                  : "Remove"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           )}
 

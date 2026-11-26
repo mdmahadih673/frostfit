@@ -19,6 +19,7 @@ import {
   getProductByIdOrSlug,
   type SellerProduct,
 } from "@/lib/api/product/get-seller-products";
+import { saveItemForOrder } from "@/lib/api/customer/saved-items";
 
 function formatPrice(value: number) {
   return value.toLocaleString(undefined, {
@@ -48,6 +49,9 @@ export function ProductDetailsView({ productId }: { productId: string }) {
   const [selectedColorState, setSelectedColor] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
   const [addedToBag, setAddedToBag] = useState(false);
+  const [isSavingItem, setIsSavingItem] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
   const loadProduct = async () => {
     setIsLoading(true);
@@ -172,6 +176,53 @@ export function ProductDetailsView({ productId }: { productId: string }) {
       if (fallbackForColor) setSelectedSize(fallbackForColor.size);
     }
     setQuantity(1);
+  };
+
+  const handleSelectForOrder = async () => {
+    if (!product || availableStock <= 0 || isSavingItem) return;
+
+    setIsSavingItem(true);
+    setSaveError(null);
+    setNeedsSignIn(false);
+
+    try {
+      const base = product.pricing?.price ?? 0;
+      const discount = product.pricing?.discountPrice ?? 0;
+      const unitPrice = discount > 0 && discount < base ? discount : base;
+
+      await saveItemForOrder({
+        productId: product._id,
+        name: product.name,
+        brand: product.brand || "FrostFit",
+        sku: product.sku || "",
+        thumbnail: product.images?.thumbnail || selectedImage || "",
+        unitPrice,
+        size: selectedSize,
+        color: selectedColor,
+        quantity,
+      });
+
+      setAddedToBag(true);
+    } catch (requestError) {
+      const status =
+        typeof requestError === "object" &&
+        requestError !== null &&
+        "status" in requestError
+          ? (requestError as { status?: number }).status
+          : undefined;
+
+      if (status === 401) {
+        setNeedsSignIn(true);
+      }
+
+      setSaveError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not save item.",
+      );
+    } finally {
+      setIsSavingItem(false);
+    }
   };
 
   if (isLoading) {
@@ -499,14 +550,16 @@ export function ProductDetailsView({ productId }: { productId: string }) {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              disabled={availableStock <= 0}
-              onClick={() => setAddedToBag(true)}
+              disabled={availableStock <= 0 || isSavingItem}
+              onClick={handleSelectForOrder}
               className="button-sm inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[#1d2c27] px-6 py-3.5 text-white transition duration-300 hover:bg-[#344a42] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#9aa39c]"
             >
-              {addedToBag ? (
+              {isSavingItem ? (
+                "Saving to dashboard…"
+              ) : addedToBag ? (
                 <>
                   <Check aria-hidden="true" className="size-4" />
-                  Selected ({selectedSize} / {selectedColor} × {quantity})
+                  Saved ({selectedSize} / {selectedColor} × {quantity})
                 </>
               ) : (
                 <>
@@ -522,6 +575,33 @@ export function ProductDetailsView({ productId }: { productId: string }) {
               Continue shopping
             </Link>
           </div>
+
+          {addedToBag && (
+            <p className="mt-3 text-xs text-[#2f5d46]">
+              Added to your{" "}
+              <Link
+                href="/dashboard?tab=saved"
+                className="font-semibold underline underline-offset-4"
+              >
+                Saved items
+              </Link>{" "}
+              in the dashboard.
+            </p>
+          )}
+
+          {saveError && (
+            <p className="mt-3 text-xs text-[#a94e42]">
+              {saveError}{" "}
+              {needsSignIn && (
+                <Link
+                  href="/sign-in"
+                  className="font-semibold text-[#1d2c27] underline underline-offset-4"
+                >
+                  Sign in now
+                </Link>
+              )}
+            </p>
+          )}
 
           {/* Shipping & Guarantee */}
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
