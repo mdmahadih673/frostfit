@@ -1,20 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+
+import { authClient } from "@/lib/auth-client";
 
 import { FormField, inputClassName, submitButtonClassName } from "./form-field";
 import { PasswordInput } from "./password-input";
 
 export function SignUpForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setError(null);
+    setIsPending(true);
+
+    const { data, error: signUpError } = await authClient.signUp.email({
+      name,
+      email,
+      password,
+      callbackURL: "/",
+    });
+
+    setIsPending(false);
+
+    if (signUpError) {
+      setError(signUpError.message ?? "Could not create your account. Please try again.");
+      return;
+    }
+
+    if (data) {
+      router.push("/");
+      router.refresh();
+    }
   }
 
   return (
@@ -80,14 +105,14 @@ export function SignUpForm() {
           </span>
         </label>
 
-        <button type="submit" className={submitButtonClassName}>
-          Create account
+        <button type="submit" disabled={isPending} className={`${submitButtonClassName} disabled:cursor-not-allowed disabled:opacity-60`}>
+          {isPending ? "Creating account…" : "Create account"}
         </button>
       </form>
 
-      {submitted ? (
-        <p role="status" aria-live="polite" className="body-6 mt-5 rounded-2xl border border-[#d8d8d2] bg-white px-4 py-3 text-[#1d2c27]">
-          Demo form only — connect your authentication provider to enable sign up.
+      {error ? (
+        <p role="alert" className="body-6 mt-5 rounded-2xl border border-[#b3261e]/30 bg-[#b3261e]/5 px-4 py-3 text-[#b3261e]">
+          {error}
         </p>
       ) : null}
 
