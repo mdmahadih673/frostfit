@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, BarChart3, Boxes, CircleAlert, PackagePlus, ShoppingBag, WalletCards } from "lucide-react";
 
 import { SellerAddProductForm } from "./seller-add-product-form";
+import { SellerProductsTable } from "./seller-products-table";
 import { SellerSettingsForm } from "./seller-settings-form";
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
@@ -56,7 +57,7 @@ export function SellerAddProductPage({ sellerId }: { sellerId: string }) {
   );
 }
 
-export function SellerProductsPage() {
+export function SellerProductsPage({ sellerId }: { sellerId: string }) {
   return (
     <div className="space-y-7">
       <PageHeading
@@ -70,22 +71,7 @@ export function SellerProductsPage() {
         }
       />
       <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
-        <PreviewNotice />
-        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-          <input disabled placeholder="Search products" className="h-11 rounded-xl border border-[#e1e4df] bg-white px-3 text-sm placeholder:text-[#9aa39c] disabled:cursor-not-allowed" />
-          <button type="button" disabled className="h-11 rounded-xl border border-[#e1e4df] bg-white px-3 text-left text-sm text-[#9aa39c] disabled:cursor-not-allowed">All statuses</button>
-        </div>
-        <div className="mt-5 grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr] gap-3 rounded-xl bg-[#edf0ec] px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#788079]">
-          <span>Product</span><span>Price</span><span>Stock</span><span>Status</span>
-        </div>
-        <div className="mt-3">
-          <EmptyState
-            icon={Boxes}
-            title="No products found"
-            description="Your product catalog is empty. Add a product to get started."
-            action={<Link href="/dashboard/products/new" className="text-sm font-medium text-[#1d2c27] underline underline-offset-4">Add your first product</Link>}
-          />
-        </div>
+        <SellerProductsTable sellerId={sellerId} />
       </section>
     </div>
   );
