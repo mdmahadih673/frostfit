@@ -1,4 +1,4 @@
-import type { SellerProductPayload } from "./create-seller-product";
+ import type { SellerProductPayload } from "./create-seller-product";
 
 export type SellerProduct = Omit<SellerProductPayload, "status"> & {
   _id: string;
@@ -85,6 +85,82 @@ export async function getAllProducts(): Promise<SellerProduct[]> {
   }
 
   return responseBody.products as SellerProduct[];
+}
+
+export type ProductSortOption = "newest" | "price-asc" | "price-desc";
+
+export type ProductSearchParams = {
+  q?: string;
+  season?: string;
+  gender?: string;
+  size?: string;
+  inStock?: boolean;
+  sort?: ProductSortOption;
+};
+
+export type ProductSearchResponse = {
+  products: SellerProduct[];
+  totalCount: number;
+  facets: {
+    seasons: string[];
+    genders: string[];
+    sizes: string[];
+  };
+};
+
+export async function searchProducts(
+  params: ProductSearchParams = {},
+  signal?: AbortSignal,
+): Promise<ProductSearchResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params.q?.trim()) searchParams.set("q", params.q.trim());
+  if (params.season && params.season !== "all") {
+    searchParams.set("season", params.season);
+  }
+  if (params.gender && params.gender !== "all") {
+    searchParams.set("gender", params.gender);
+  }
+  if (params.size && params.size !== "all") {
+    searchParams.set("size", params.size);
+  }
+  if (params.inStock) searchParams.set("inStock", "true");
+  if (params.sort) searchParams.set("sort", params.sort);
+
+  const queryString = searchParams.toString();
+  const response = await fetch(
+    `/api/products${queryString ? `?${queryString}` : ""}`,
+    { signal },
+  );
+
+  const responseText = await response.text();
+  let responseBody: unknown = null;
+
+  if (responseText) {
+    try {
+      responseBody = JSON.parse(responseText);
+    } catch {
+      responseBody = responseText;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(responseBody) ??
+        `Products search request failed (${response.status}).`,
+    );
+  }
+
+  if (
+    typeof responseBody !== "object" ||
+    responseBody === null ||
+    !("products" in responseBody) ||
+    !Array.isArray(responseBody.products)
+  ) {
+    throw new Error("Products search response is invalid.");
+  }
+
+  return responseBody as ProductSearchResponse;
 }
 
 export async function getProductByIdOrSlug(idOrSlug: string): Promise<SellerProduct | null> {

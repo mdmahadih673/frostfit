@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { Navbar } from "@/components/home/navbar";
 import { AllProductsGrid } from "@/components/product/all-products-grid";
 
@@ -29,7 +31,15 @@ export function CollectionPage({
             {description}
           </p>
           <div className="mt-10">
-            <AllProductsGrid season={season} />
+            <Suspense
+              fallback={
+                <p className="body-6 py-16 text-center text-[#6f746e]">
+                  Loading products…
+                </p>
+              }
+            >
+              <AllProductsGrid season={season} />
+            </Suspense>
           </div>
         </section>
       </section>

@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { Navbar } from "@/components/home/navbar";
 import { AllProductsGrid } from "@/components/product/all-products-grid";
 
@@ -17,7 +19,15 @@ export default function AllProductsPage() {
             Explore every layer made for colder days and changing forecasts.
           </p>
           <div className="mt-10">
-            <AllProductsGrid />
+            <Suspense
+              fallback={
+                <p className="body-6 py-16 text-center text-[#6f746e]">
+                  Loading products…
+                </p>
+              }
+            >
+              <AllProductsGrid />
+            </Suspense>
           </div>
         </section>
       </section>
