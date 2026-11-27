@@ -63,6 +63,14 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const combinationKeys = variants.map(
+      ({ size, color }) => `${size.trim().toLowerCase()}::${color.trim().toLowerCase()}`,
+    );
+    if (new Set(combinationKeys).size !== combinationKeys.length) {
+      setSubmitError("Each size and color combination must be unique. You can repeat a size or color with a different pair.");
+      return;
+    }
+
     const now = new Date().toISOString();
     const productPayload: SellerProductPayload = {
       sellerId,
@@ -178,24 +186,24 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[#1d2c27]">Variants and stock</h2>
-                <p className="mt-1 text-sm text-[#788079]">Add a size, color, and available stock for each variant.</p>
+                <p className="mt-1 max-w-2xl text-sm text-[#788079]">Add each size and color combination with its own stock. You can repeat a size in different colors, or a color in different sizes.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setVariants((current) => [...current, { id: nextVariantId.current++, size: "", color: "", stock: "0" }])}
                 className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#cbd2cc] px-3 text-sm font-medium text-[#1d2c27] transition-colors hover:bg-[#edf0ec]"
               >
-                <Plus aria-hidden="true" className="size-4" /> Add variant
+                <Plus aria-hidden="true" className="size-4" /> Add size and color
               </button>
             </div>
             <div className="mt-5 space-y-3">
               {variants.map((variant, index) => (
                 <div key={variant.id} className="grid gap-3 rounded-2xl border border-[#e6e8e4] bg-white p-4 sm:grid-cols-[1fr_1fr_120px_auto]">
                   <Field label={`Size ${index + 1}`}>
-                    <input required value={variant.size} onChange={(event) => updateVariant(variant.id, "size", event.target.value)} placeholder="M" className={fieldClassName} />
+                    <input required value={variant.size} onChange={(event) => updateVariant(variant.id, "size", event.target.value)} placeholder="M, L, XL" className={fieldClassName} />
                   </Field>
                   <Field label="Color">
-                    <input required value={variant.color} onChange={(event) => updateVariant(variant.id, "color", event.target.value)} placeholder="Black" className={fieldClassName} />
+                    <input required value={variant.color} onChange={(event) => updateVariant(variant.id, "color", event.target.value)} placeholder="Black, Navy" className={fieldClassName} />
                   </Field>
                   <Field label="Stock">
                     <input required min="0" step="1" type="number" value={variant.stock} onChange={(event) => updateVariant(variant.id, "stock", event.target.value)} className={fieldClassName} />
@@ -204,7 +212,7 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
                     type="button"
                     disabled={variants.length === 1}
                     onClick={() => setVariants((current) => current.filter((entry) => entry.id !== variant.id))}
-                    aria-label={`Remove size ${index + 1}`}
+                    aria-label={`Remove size and color combination ${index + 1}`}
                     className="mt-auto flex size-11 items-center justify-center rounded-xl text-[#8b554e] transition-colors hover:bg-[#f8eeec] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Trash2 aria-hidden="true" className="size-4" />

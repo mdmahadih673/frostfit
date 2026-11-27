@@ -17,7 +17,17 @@ export type SellerOrder = {
   status: string;
   createdAt: string;
   paymentMethod: string;
+  shippingAddress?: {
+    fullName?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+    note?: string;
+  } | null;
 };
+
+export type SellerOrderStatus = "confirmed" | "rejected";
 
 export async function getSellerOrders(): Promise<SellerOrder[]> {
   const response = await fetch("/api/seller/orders");
@@ -36,4 +46,21 @@ export async function getSellerOrders(): Promise<SellerOrder[]> {
   }
 
   return body.orders as SellerOrder[];
+}
+
+export async function updateSellerOrderStatus(orderId: string, status: SellerOrderStatus) {
+  const response = await fetch("/api/seller/orders", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderId, status }),
+  });
+  const body: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
+        ? body.message
+        : `Could not update order (${response.status}).`;
+    throw new Error(message);
+  }
 }

@@ -83,3 +83,63 @@ export async function GET() {
     return NextResponse.json({ message: "Failed to load seller orders." }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session) {
+      return NextResponse.json({ message: "Please sign in to update orders." }, { status: 401 });
+    }
+
+    if (session.user.role !== USER_ROLES.seller) {
+      return NextResponse.json({ message: "Seller access is required." }, { status: 403 });
+    }
+
+    const body: unknown = await request.json().catch(() => null);
+    if (typeof body !== "object" || body === null || !("orderId" in body) || !("status" in body)) {
+      return NextResponse.json({ message: "orderId and status are required." }, { status: 400 });
+    }
+
+    const { orderId, status } = body as { orderId: unknown; status: unknown };
+    if (typeof orderId !== "string" || !ObjectId.isValid(orderId)) {
+      return NextResponse.json({ message: "A valid orderId is required." }, { status: 400 });
+    }
+
+    if (status !== "confirmed" && status !== "rejected") {
+      return NextResponse.json({ message: "Status must be confirmed or rejected." }, { status: 400 });
+    }
+
+    const client = await getMongoClient();
+    const db = client.db("frostfit");
+    const productIds = (await db.collection("sellerProducts")
+      .find({ sellerId: session.user.id }, { projection: { _id: 1 } })
+      .toArray())
+      .flatMap(({ _id }) => _id instanceof ObjectId ? [String(_id), _id.toHexString()] : [String(_id)]);
+
+    if (!productIds.length) {
+      return NextResponse.json({ message: "No products found for this seller." }, { status: 404 });
+    }
+
+    const orders = db.collection("customerOrders");
+    const filter = {
+      _id: new ObjectId(orderId),
+      status: { $in: ["pending", "new"] },
+      "items.productId": { $in: productIds },
+    };
+    const result = await orders.updateOne(filter, { $set: { status, updatedAt: new Date() } });
+
+    if (!result.matchedCount) {
+      const exists = await orders.findOne({ _id: new ObjectId(orderId), "items.productId": { $in: productIds } }, { projection: { _id: 1 } });
+      return NextResponse.json(
+        { message: exists ? "This order has already been processed." : "Order not found for your products." },
+        { status: exists ? 409 : 404 },
+      );
+    }
+
+    return NextResponse.json({ message: "Order status updated.", status });
+  } catch (error) {
+    console.error("Failed to update seller order:", error);
+    return NextResponse.json({ message: "Failed to update order status." }, { status: 500 });
+  }
+}
