@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Compass,
+  ExternalLink,
   Heart,
   LayoutDashboard,
   MapPin,
@@ -17,10 +18,12 @@ import {
   Sparkles,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 
 import { Navbar } from "@/components/home/navbar";
 import {
+  deleteCustomerOrder,
   getCustomerOrders,
   type CustomerOrder,
 } from "@/lib/api/customer/orders";
@@ -92,6 +95,7 @@ export function CustomerDashboard({
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   const orderedJustNow = searchParams.get("ordered") === "1";
 
@@ -222,6 +226,27 @@ export function CustomerDashboard({
       );
     } finally {
       setRemovingItemId(null);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+
+    setCancellingOrderId(orderId);
+    setOrdersError(null);
+    try {
+      await deleteCustomerOrder(orderId);
+      setOrders((currentOrders) =>
+        currentOrders.filter((order) => order._id !== orderId),
+      );
+    } catch (cancelError) {
+      setOrdersError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "Failed to cancel order.",
+      );
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
@@ -628,6 +653,7 @@ export function CustomerDashboard({
                         <th className="px-4 py-3.5">Delivery / Payment</th>
                         <th className="px-4 py-3.5">Total</th>
                         <th className="px-4 py-3.5">Status</th>
+                        <th className="px-4 py-3.5">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#eef0ec]">
@@ -674,9 +700,50 @@ export function CustomerDashboard({
                             {formatPrice(order.totalAmount)}
                           </td>
                           <td className="px-4 py-3.5">
-                            <span className="inline-flex rounded-full bg-[#f0ece1] px-2.5 py-1 text-xs font-medium capitalize text-[#6a5a32]">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                                order.status === "confirmed"
+                                  ? "bg-[#e3f0e7] text-[#1d462b]"
+                                  : order.status === "cancelled"
+                                    ? "bg-[#f5e4e2] text-[#8b3a2f]"
+                                    : order.status === "delivered"
+                                      ? "bg-[#e5eee9] text-[#24553a]"
+                                      : "bg-[#f0ece1] text-[#6a5a32]"
+                              }`}
+                            >
                               {order.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex flex-col gap-1.5">
+                              {(order.status === "pending" ||
+                                order.status === "processing") && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelOrder(order._id)}
+                                  disabled={cancellingOrderId === order._id}
+                                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-[#e3d2cf] px-3 py-1.5 text-xs font-medium text-[#9e3f33] transition hover:bg-[#fff5f3] disabled:opacity-50"
+                                >
+                                  <X aria-hidden="true" className="size-3.5" />
+                                  {cancellingOrderId === order._id
+                                    ? "Cancelling…"
+                                    : "Cancel"}
+                                </button>
+                              )}
+
+                              {order.status === "confirmed" && (
+                                <Link
+                                  href={`/dashboard?tab=orders`}
+                                  className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-[#1d462b] underline hover:text-[#24553a]"
+                                >
+                                  <ExternalLink
+                                    aria-hidden="true"
+                                    className="size-3.5"
+                                  />
+                                  Track order
+                                </Link>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

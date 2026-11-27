@@ -42,13 +42,14 @@ export async function GET() {
     const collection = client.db("frostfit").collection("customerOrders");
 
     const rawOrders = await collection
-      .find({ userId: user.id })
+      .find({ $or: [{ customerId: user.id }, { userId: user.id }] })
       .sort({ createdAt: -1 })
       .toArray();
 
     const orders = rawOrders.map((order) => ({
       ...order,
       _id: String(order._id),
+      customerId: String(order.customerId ?? order.userId ?? ""),
     }));
 
     return NextResponse.json({ orders });
@@ -78,17 +79,23 @@ export async function POST(request: NextRequest) {
     } | null;
 
     const rawIds = Array.isArray(body?.savedItemIds) ? body.savedItemIds : [];
-    const validObjectIds = rawIds
-      .filter((id): id is string => typeof id === "string" && ObjectId.isValid(id))
-      .map((id) => new ObjectId(id));
+    const savedItemIds = rawIds.filter(
+      (id): id is string => typeof id === "string",
+    );
 
-    if (!validObjectIds.length) {
+    if (
+      !savedItemIds.length ||
+      savedItemIds.length !== rawIds.length ||
+      savedItemIds.some((id) => !ObjectId.isValid(id)) ||
+      new Set(savedItemIds).size !== savedItemIds.length
+    ) {
       return NextResponse.json(
         { message: "Select at least one saved item to order." },
         { status: 400 },
       );
     }
 
+    const validObjectIds = savedItemIds.map((id) => new ObjectId(id));
     const rawAddress = body?.shippingAddress;
     const fullName =
       typeof rawAddress?.fullName === "string" ? rawAddress.fullName.trim() : "";
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest) {
       })
       .toArray();
 
-    if (!selectedItems.length) {
+    if (selectedItems.length !== validObjectIds.length) {
       return NextResponse.json(
         { message: "No matching saved items found for your account." },
         { status: 404 },
@@ -159,6 +166,20 @@ export async function POST(request: NextRequest) {
       color: String(item.color ?? ""),
       quantity: Number(item.quantity ?? 1),
     }));
+    if (
+      orderItems.some(
+        (item) =>
+          !Number.isFinite(item.unitPrice) ||
+          item.unitPrice < 0 ||
+          !Number.isInteger(item.quantity) ||
+          item.quantity < 1,
+      )
+    ) {
+      return NextResponse.json(
+        { message: "One or more selected items have invalid order details." },
+        { status: 400 },
+      );
+    }
 
     const totalAmount = orderItems.reduce(
       (sum, item) => sum + item.unitPrice * item.quantity,
@@ -167,7 +188,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const newOrder = {
-      userId: user.id,
+      customerId: user.id,
       customerName: user.name,
       customerEmail: user.email,
       items: orderItems,

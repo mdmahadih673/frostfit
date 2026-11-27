@@ -19,11 +19,12 @@ export type ShippingAddress = {
   city: string;
   postalCode?: string;
   note?: string;
+  email?: string;
 };
 
 export type CustomerOrder = {
   _id: string;
-  userId: string;
+  customerId: string;
   customerName: string;
   customerEmail: string;
   items: CustomerOrderItem[];
@@ -102,4 +103,12 @@ export async function placeCustomerOrder(
   }
 
   return body.order as CustomerOrder;
+}
+
+export async function deleteCustomerOrder(orderId: string): Promise<void> {
+  const response = await fetch(`${ORDERS_API_URL}/${orderId}`, {
+    method: "DELETE",
+  });
+
+  await parseJsonResponse(response);
 }
