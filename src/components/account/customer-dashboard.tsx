@@ -23,6 +23,17 @@ import {
 
 import { Navbar } from "@/components/home/navbar";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   deleteCustomerOrder,
   getCustomerOrders,
   type CustomerOrder,
@@ -96,6 +107,7 @@ export function CustomerDashboard({
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<CustomerOrder | null>(null);
 
   const orderedJustNow = searchParams.get("ordered") === "1";
 
@@ -230,8 +242,6 @@ export function CustomerDashboard({
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    if (!window.confirm("Are you sure you want to cancel this order?")) return;
-
     setCancellingOrderId(orderId);
     setOrdersError(null);
     try {
@@ -239,6 +249,7 @@ export function CustomerDashboard({
       setOrders((currentOrders) =>
         currentOrders.filter((order) => order._id !== orderId),
       );
+      setOrderToCancel(null);
     } catch (cancelError) {
       setOrdersError(
         cancelError instanceof Error
@@ -720,7 +731,7 @@ export function CustomerDashboard({
                                 order.status === "processing") && (
                                 <button
                                   type="button"
-                                  onClick={() => handleCancelOrder(order._id)}
+                                  onClick={() => setOrderToCancel(order)}
                                   disabled={cancellingOrderId === order._id}
                                   className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-[#e3d2cf] px-3 py-1.5 text-xs font-medium text-[#9e3f33] transition hover:bg-[#fff5f3] disabled:opacity-50"
                                 >
@@ -933,7 +944,7 @@ export function CustomerDashboard({
                                 disabled={removingItemId === item._id}
                                 onClick={() => handleRemoveSavedItem(item._id)}
                                 aria-label={`Remove ${item.name}`}
-                                className="inline-flex items-center gap-1 rounded-full border border-[#e3d2cf] px-3 py-1.5 text-xs font-medium text-[#9e3f33] transition hover:bg-[#fff5f3] disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[#ead8d5] bg-[#fff8f6] px-3 py-1.5 text-xs font-medium text-[#98483e] shadow-sm transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[#d9b8b2] hover:bg-[#f8eeec] hover:text-[#7e372f] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a94e42] disabled:cursor-wait disabled:opacity-60"
                               >
                                 <Trash2
                                   aria-hidden="true"
@@ -981,6 +992,46 @@ export function CustomerDashboard({
           )}
         </main>
       </div>
+
+      <AlertDialog
+        open={Boolean(orderToCancel)}
+        onOpenChange={(open) => {
+          if (!open && !cancellingOrderId) setOrderToCancel(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md gap-5 rounded-2xl border border-[#e5d8d4] bg-[#fffdfc] p-6 shadow-[0_24px_70px_rgba(50,38,34,0.18)]">
+          <AlertDialogHeader className="place-items-start gap-3 text-left">
+            <AlertDialogMedia className="mb-0 size-11 rounded-xl bg-[#f8e9e6] text-[#a94e42]">
+              <AlertCircle aria-hidden="true" className="size-5" />
+            </AlertDialogMedia>
+            <div>
+              <AlertDialogTitle className="text-lg font-semibold tracking-[-0.03em] text-[#34201c]">
+                Cancel this order?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-pretty text-[#775f59]">
+                Order #{orderToCancel?._id.slice(-6).toUpperCase()} will be cancelled. This action cannot be undone.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="-mx-6 -mb-6 border-[#eadeda] bg-[#fff9f7] p-4 sm:justify-end">
+            <AlertDialogCancel
+              disabled={Boolean(cancellingOrderId)}
+              className="border-[#d9ceca] bg-white text-[#5f4b46] hover:bg-[#f6f1ef]"
+            >
+              Keep order
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!orderToCancel || Boolean(cancellingOrderId)}
+              onClick={() => {
+                if (orderToCancel) void handleCancelOrder(orderToCancel._id);
+              }}
+              className="bg-[#a94e42] text-white hover:bg-[#8d4036]"
+            >
+              {cancellingOrderId ? "Cancelling…" : "Cancel order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

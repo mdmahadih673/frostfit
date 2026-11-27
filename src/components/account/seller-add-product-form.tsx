@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { CircleAlert, ImagePlus, Plus, Trash2 } from "lucide-react";
 
 import { createSellerProduct, type SellerProductPayload } from "@/lib/api/product/create-seller-product";
@@ -33,6 +34,7 @@ const fieldClassName =
   "mt-2 h-11 w-full rounded-xl border border-[#d8ddd8] bg-white px-3 text-sm text-[#26332c] outline-none transition-colors placeholder:text-[#9aa39c] focus:border-[#1d2c27] focus:ring-2 focus:ring-[#1d2c27]/10";
 
 export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -50,7 +52,6 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
   const [weight, setWeight] = useState("");
   const [freeShipping, setFreeShipping] = useState(false);
   const [deliveryCharge, setDeliveryCharge] = useState("80");
-  const [payload, setPayload] = useState<SellerProductPayload | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nextVariantId = useRef(1);
@@ -101,15 +102,12 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
 
     setIsSubmitting(true);
     setSubmitError(null);
-    setPayload(null);
 
     try {
-      const response = await createSellerProduct(productPayload);
-      console.log("Seller product API response:", response);
-      setPayload(productPayload);
+      await createSellerProduct(productPayload);
+      router.push("/dashboard/products?created=1");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create product.";
-      console.error("Product creation failed:", error);
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -303,13 +301,6 @@ export function SellerAddProductForm({ sellerId }: { sellerId: string }) {
         </p>
       ) : null}
 
-      {payload ? (
-        <section aria-live="polite" className="rounded-3xl border border-[#b8c8bb] bg-[#f3f7f3] p-5 sm:p-7">
-          <h2 className="text-lg font-semibold text-[#1d2c27]">Product created successfully</h2>
-          <p className="mt-1 text-sm text-[#69736c]">Your product is saved and waiting for review.</p>
-          <pre className="mt-4 max-h-[28rem] overflow-auto rounded-2xl bg-[#17241f] p-4 text-xs leading-5 text-[#e2e8e3]">{JSON.stringify(payload, null, 2)}</pre>
-        </section>
-      ) : null}
     </form>
   );
 }

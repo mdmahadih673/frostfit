@@ -1,19 +1,52 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+
+import { authClient } from "@/lib/auth-client";
 
 import { FormField, inputClassName, submitButtonClassName } from "./form-field";
 import { PasswordInput } from "./password-input";
 
 export function SignInForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setError(null);
+    setIsPending(true);
+
+    try {
+      const { data, error: signInError } = await authClient.signIn.email({
+        email: email.trim(),
+        password,
+        callbackURL: "/dashboard",
+      });
+
+      if (signInError) {
+        setError(signInError.message ?? "Could not sign in. Check your email and password, then try again.");
+        return;
+      }
+
+      if (data) {
+        setPassword("");
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (signInError) {
+      setError(
+        signInError instanceof Error
+          ? signInError.message
+          : "Could not sign in. Please try again.",
+      );
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -41,9 +74,9 @@ export function SignInForm() {
           id="password"
           label="Password"
           action={
-            <a href="#" className="caption-4 text-[#6f746e] transition-colors duration-300 hover:text-[#1d2c27] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
+            <Link href="/forgot-password" className="caption-4 text-[#6f746e] transition-colors duration-300 hover:text-[#1d2c27] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]">
               Forgot password?
-            </a>
+            </Link>
           }
         >
           <PasswordInput
@@ -62,14 +95,14 @@ export function SignInForm() {
           Remember me
         </label>
 
-        <button type="submit" className={submitButtonClassName}>
-          Sign in
+        <button type="submit" disabled={isPending} className={`${submitButtonClassName} disabled:cursor-not-allowed disabled:opacity-60`}>
+          {isPending ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
-      {submitted ? (
-        <p role="status" aria-live="polite" className="body-6 mt-5 rounded-2xl border border-[#d8d8d2] bg-white px-4 py-3 text-[#1d2c27]">
-          Demo form only — connect your authentication provider to enable sign in.
+      {error ? (
+        <p role="alert" aria-live="polite" className="body-6 mt-5 rounded-2xl border border-[#b3261e]/30 bg-[#b3261e]/5 px-4 py-3 text-[#b3261e]">
+          {error}
         </p>
       ) : null}
 

@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Boxes, CircleAlert, PackagePlus, ShoppingBag, WalletCards } from "lucide-react";
+import { ArrowLeft, BarChart3, CircleAlert, PackagePlus, WalletCards } from "lucide-react";
 
 import { SellerAddProductForm } from "./seller-add-product-form";
 import { SellerProductsTable } from "./seller-products-table";
+import { SellerOrdersTable } from "./seller-orders-table";
 import { SellerSettingsForm } from "./seller-settings-form";
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
@@ -23,17 +24,6 @@ function PreviewNotice({ children = "This is a UI preview. Changes are not saved
     <div className="flex items-start gap-2 rounded-xl bg-[#f4f1e8] px-4 py-3 text-sm text-[#766641]">
       <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <p>{children}</p>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, title, description, action }: { icon: typeof Boxes; title: string; description: string; action?: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-12 text-center">
-      <Icon aria-hidden="true" className="mx-auto size-8 text-[#9aa39c]" />
-      <h2 className="mt-3 text-base font-semibold text-[#1d2c27]">{title}</h2>
-      <p className="mx-auto mt-1 max-w-md text-sm text-[#788079]">{description}</p>
-      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }
@@ -80,23 +70,9 @@ export function SellerProductsPage({ sellerId }: { sellerId: string }) {
 export function SellerOrdersPage() {
   return (
     <div className="space-y-7">
-      <PageHeading eyebrow="Fulfillment" title="My orders" description="Review incoming orders and keep each order moving to delivery." />
-      <div className="grid gap-3 sm:grid-cols-3">
-        {["New", "Processing", "Completed"].map((status) => (
-          <article key={status} className="rounded-2xl border border-[#e1e4df] bg-[#f9faf8] p-5">
-            <p className="text-sm text-[#788079]">{status} orders</p>
-            <p className="mt-3 text-2xl font-semibold text-[#1d2c27]">—</p>
-          </article>
-        ))}
-      </div>
+      <PageHeading eyebrow="Fulfillment" title="My orders" description="Review orders that include products from your store." />
       <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
-        <PreviewNotice>Order management is a UI preview. Orders will appear here after checkout and order storage are connected.</PreviewNotice>
-        <div className="mt-5 grid grid-cols-[1fr_1.5fr_1fr_1fr] gap-3 rounded-xl bg-[#edf0ec] px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#788079]">
-          <span>Order</span><span>Customer</span><span>Date</span><span>Status</span>
-        </div>
-        <div className="mt-3">
-          <EmptyState icon={ShoppingBag} title="No orders yet" description="New customer orders will be listed here." />
-        </div>
+        <SellerOrdersTable />
       </section>
     </div>
   );

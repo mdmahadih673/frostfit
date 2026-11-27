@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, Boxes, Eye, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { AlertCircle, Boxes, CheckCircle2, Eye, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 
 import {
   deleteSellerProduct,
@@ -24,6 +25,7 @@ function formatPrice(product: SellerProduct) {
 }
 
 export function SellerProductsTable({ sellerId }: { sellerId: string }) {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,6 +38,7 @@ export function SellerProductsTable({ sellerId }: { sellerId: string }) {
   const [isSaving, setIsSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const showCreatedToast = searchParams.get("created") === "1";
 
   const loadProducts = async () => {
     setIsLoading(true);
@@ -159,7 +162,8 @@ export function SellerProductsTable({ sellerId }: { sellerId: string }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[#e1e4df] bg-white">
+    <div className="relative overflow-x-auto rounded-2xl border border-[#e1e4df] bg-white">
+      {showCreatedToast ? <div role="status" aria-live="polite" className="fixed right-4 top-20 z-50 flex items-start gap-3 rounded-2xl border border-[#cbd8ce] bg-white p-4 text-sm text-[#1d2c27] shadow-[0_16px_44px_rgba(29,44,39,0.16)]"><CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-[#3f7651]" /><div><p className="font-semibold">Product added</p><p className="mt-0.5 text-[#69736c]">Your product is now in My products.</p></div></div> : null}
       <table className="w-full min-w-[800px] text-left">
         <thead className="bg-[#edf0ec] text-xs font-medium uppercase tracking-wide text-[#788079]">
           <tr>
