@@ -32,6 +32,7 @@ export type CustomerOrder = {
   paymentMethod?: PaymentMethod;
   totalAmount: number;
   status: string;
+  trackingUrl?: string;
   createdAt: string;
   updatedAt: string;
 };

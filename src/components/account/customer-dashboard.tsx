@@ -81,6 +81,16 @@ function formatDate(value?: string) {
   });
 }
 
+function getTrackingHref(value?: string) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function CustomerDashboard({
   name,
   email,
@@ -742,18 +752,22 @@ export function CustomerDashboard({
                                 </button>
                               )}
 
-                              {order.status === "confirmed" && (
-                                <Link
-                                  href={`/dashboard?tab=orders`}
-                                  className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-[#1d462b] underline hover:text-[#24553a]"
-                                >
-                                  <ExternalLink
-                                    aria-hidden="true"
-                                    className="size-3.5"
-                                  />
-                                  Track order
-                                </Link>
-                              )}
+                              {order.status === "confirmed" && (() => {
+                                const trackingHref = getTrackingHref(order.trackingUrl);
+                                return trackingHref ? (
+                                  <a
+                                    href={trackingHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-[#1d462b] underline hover:text-[#24553a]"
+                                  >
+                                    <ExternalLink aria-hidden="true" className="size-3.5" />
+                                    Track order
+                                  </a>
+                                ) : (
+                                  <span className="whitespace-nowrap text-xs text-[#788079]">Tracking link pending</span>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>

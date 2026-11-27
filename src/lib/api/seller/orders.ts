@@ -15,6 +15,7 @@ export type SellerOrder = {
   items: SellerOrderItem[];
   totalAmount: number;
   status: string;
+  trackingUrl?: string;
   createdAt: string;
   paymentMethod: string;
   shippingAddress?: {
@@ -48,11 +49,15 @@ export async function getSellerOrders(): Promise<SellerOrder[]> {
   return body.orders as SellerOrder[];
 }
 
-export async function updateSellerOrderStatus(orderId: string, status: SellerOrderStatus) {
+export async function updateSellerOrderStatus(
+  orderId: string,
+  status?: SellerOrderStatus,
+  trackingUrl?: string,
+) {
   const response = await fetch("/api/seller/orders", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ orderId, status }),
+    body: JSON.stringify({ orderId, ...(status ? { status } : {}), ...(trackingUrl !== undefined ? { trackingUrl } : {}) }),
   });
   const body: unknown = await response.json().catch(() => null);
 
