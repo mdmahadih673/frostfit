@@ -4,6 +4,8 @@ import type { SellerProductPayload } from "./create-seller-product";
 export type SellerProduct = Omit<SellerProductPayload, "status"> & {
   _id: string;
   status: string;
+  reviewReason?: string;
+  reviewedAt?: string | null;
 };
 
 const BACKEND_API_URL = API_BASE_URL;

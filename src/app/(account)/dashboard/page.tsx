@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { CustomerDashboard } from "@/components/account/customer-dashboard";
+import { AdminDashboard } from "@/components/account/admin-dashboard";
 import { SellerDashboardLayout } from "@/components/account/seller-dashboard-layout";
 import { SellerDashboardOverview } from "@/components/account/seller-dashboard-overview";
 import { getRequiredSession } from "@/lib/get-required-session";
@@ -40,12 +41,12 @@ async function DashboardContent() {
     );
   }
 
+  if (user.role === USER_ROLES.admin) {
+    return <AdminDashboard name={name} email={user.email} adminId={user.id} />;
+  }
+
   const role =
-    user.role === USER_ROLES.admin
-      ? "Admin"
-      : user.role === USER_ROLES.customer
-        ? "Customer"
-        : "Member";
+    user.role === USER_ROLES.customer ? "Customer" : "Member";
 
   return <CustomerDashboard customerId={user.id} name={name} email={user.email} role={role} />;
 }
