@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   getSavedItems,
   type SavedOrderItem,
 } from "@/lib/api/customer/saved-items";
+import { getCustomerAddresses } from "@/lib/api/customer/addresses";
 
 type CustomerCheckoutProps = {
   customerId: string;
@@ -98,6 +99,8 @@ export function CustomerCheckout({
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [note, setNote] = useState("");
+  const addressWasEdited = useRef(false);
+  const [hasPrefilledAddress, setHasPrefilledAddress] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -142,6 +145,27 @@ export function CustomerCheckout({
     return () => {
       isCurrent = false;
     };
+  }, [customerId]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    getCustomerAddresses(customerId)
+      .then((addresses) => {
+        if (!isCurrent || addressWasEdited.current) return;
+        const savedAddress = addresses.find((item) => item.isDefault) ?? addresses[0];
+        if (!savedAddress) return;
+        setFullName(savedAddress.fullName);
+        setPhone(savedAddress.phone);
+        setAddress(savedAddress.address);
+        setCity(savedAddress.city);
+        setPostalCode(savedAddress.postalCode);
+        setNote(savedAddress.note);
+        setHasPrefilledAddress(true);
+      })
+      .catch(() => {
+        // Checkout can still proceed with the customer-entered address.
+      });
+    return () => { isCurrent = false; };
   }, [customerId]);
 
   const checkoutItems = useMemo(() => {
@@ -297,6 +321,7 @@ export function CustomerCheckout({
                 <p className="text-xs text-[#6f746e]">
                   Where should we deliver your order?
                 </p>
+                {hasPrefilledAddress ? <p className="mt-1 text-xs text-[#1d462b]">Default saved address loaded. You can edit any field before ordering.</p> : null}
               </div>
             </div>
 
@@ -313,7 +338,7 @@ export function CustomerCheckout({
                   type="text"
                   required
                   value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setFullName(event.target.value); }}
                   placeholder="Enter recipient name"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] px-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
@@ -331,7 +356,7 @@ export function CustomerCheckout({
                   type="tel"
                   required
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setPhone(event.target.value); }}
                   placeholder="e.g. 017XXXXXXXX"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] px-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
@@ -349,7 +374,7 @@ export function CustomerCheckout({
                   type="text"
                   required
                   value={address}
-                  onChange={(event) => setAddress(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setAddress(event.target.value); }}
                   placeholder="House, road, apartment, area"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] px-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
@@ -367,7 +392,7 @@ export function CustomerCheckout({
                   type="text"
                   required
                   value={city}
-                  onChange={(event) => setCity(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setCity(event.target.value); }}
                   placeholder="e.g. Dhaka"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] px-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
@@ -384,7 +409,7 @@ export function CustomerCheckout({
                   id="checkout-postal"
                   type="text"
                   value={postalCode}
-                  onChange={(event) => setPostalCode(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setPostalCode(event.target.value); }}
                   placeholder="e.g. 1212"
                   className="mt-1.5 h-11 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] px-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
@@ -401,7 +426,7 @@ export function CustomerCheckout({
                   id="checkout-note"
                   rows={2}
                   value={note}
-                  onChange={(event) => setNote(event.target.value)}
+                  onChange={(event) => { addressWasEdited.current = true; setNote(event.target.value); }}
                   placeholder="Any special delivery instructions..."
                   className="mt-1.5 w-full rounded-xl border border-[#d6dbd5] bg-[#f9f9f7] p-3.5 text-sm text-[#151515] focus:border-[#1d2c27] focus:bg-white focus:outline-none"
                 />
