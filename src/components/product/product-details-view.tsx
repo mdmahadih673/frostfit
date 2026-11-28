@@ -20,6 +20,7 @@ import {
   type SellerProduct,
 } from "@/lib/api/product/get-seller-products";
 import { saveItemForOrder } from "@/lib/api/customer/saved-items";
+import { authClient } from "@/lib/auth-client";
 
 function formatPrice(value: number) {
   return value.toLocaleString(undefined, {
@@ -40,6 +41,7 @@ function formatDate(value?: string) {
 }
 
 export function ProductDetailsView({ productId }: { productId: string }) {
+  const { data: session } = authClient.useSession();
   const [product, setProduct] = useState<SellerProduct | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -180,6 +182,11 @@ export function ProductDetailsView({ productId }: { productId: string }) {
 
   const handleSelectForOrder = async () => {
     if (!product || availableStock <= 0 || isSavingItem) return;
+    const customerId = session?.user.id;
+    if (!customerId) {
+      setNeedsSignIn(true);
+      return;
+    }
 
     setIsSavingItem(true);
     setSaveError(null);
@@ -190,7 +197,7 @@ export function ProductDetailsView({ productId }: { productId: string }) {
       const discount = product.pricing?.discountPrice ?? 0;
       const unitPrice = discount > 0 && discount < base ? discount : base;
 
-      await saveItemForOrder({
+      await saveItemForOrder(customerId, {
         productId: product._id,
         name: product.name,
         brand: product.brand || "FrostFit",

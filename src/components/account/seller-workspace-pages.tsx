@@ -67,12 +67,12 @@ export function SellerProductsPage({ sellerId }: { sellerId: string }) {
   );
 }
 
-export function SellerOrdersPage() {
+export function SellerOrdersPage({ sellerId }: { sellerId: string }) {
   return (
     <div className="space-y-7">
       <PageHeading eyebrow="Fulfillment" title="My orders" description="Review orders that include products from your store." />
       <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
-        <SellerOrdersTable />
+        <SellerOrdersTable sellerId={sellerId} />
       </section>
     </div>
   );

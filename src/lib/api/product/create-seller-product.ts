@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/lib/api/base-url";
+
 export type SellerProductPayload = {
   sellerId: string;
   name: string;
@@ -34,7 +36,7 @@ export type SellerProductPayload = {
   updatedAt: string;
 };
 
-const SELLER_PRODUCTS_API_URL = "http://localhost:5000/seller-products";
+const SELLER_PRODUCTS_API_URL = `${API_BASE_URL}/seller-products`;
 
 function getErrorMessage(body: unknown) {
   if (typeof body === "string" && body.trim()) return body;

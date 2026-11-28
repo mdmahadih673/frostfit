@@ -34,6 +34,6 @@ async function CheckoutContent() {
   const defaultName = user.name.trim() || user.email;
 
   return (
-    <CustomerCheckout defaultName={defaultName} defaultEmail={user.email} />
+    <CustomerCheckout customerId={user.id} defaultName={defaultName} defaultEmail={user.email} />
   );
 }

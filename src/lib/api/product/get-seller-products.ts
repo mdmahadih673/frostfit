@@ -1,11 +1,13 @@
- import type { SellerProductPayload } from "./create-seller-product";
+import { API_BASE_URL } from "@/lib/api/base-url";
+import type { SellerProductPayload } from "./create-seller-product";
 
 export type SellerProduct = Omit<SellerProductPayload, "status"> & {
   _id: string;
   status: string;
 };
 
-const SELLER_PRODUCTS_API_URL = "http://localhost:5000/seller-products";
+const BACKEND_API_URL = API_BASE_URL;
+const SELLER_PRODUCTS_API_URL = `${BACKEND_API_URL}/seller-products`;
 
 function getErrorMessage(body: unknown) {
   if (typeof body === "string" && body.trim()) return body;
@@ -129,7 +131,7 @@ export async function searchProducts(
 
   const queryString = searchParams.toString();
   const response = await fetch(
-    `/api/products${queryString ? `?${queryString}` : ""}`,
+    `${BACKEND_API_URL}/products${queryString ? `?${queryString}` : ""}`,
     { signal },
   );
 

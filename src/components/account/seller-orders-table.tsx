@@ -14,7 +14,7 @@ function formatPrice(value: number) {
   return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function SellerOrdersTable() {
+export function SellerOrdersTable({ sellerId }: { sellerId: string }) {
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function SellerOrdersTable() {
     setUpdatingOrderId(order._id);
     setError(null);
     try {
-      await updateSellerOrderStatus(order._id, status, trackingUrlDraft);
+      await updateSellerOrderStatus(sellerId, order._id, status, trackingUrlDraft);
       setOrders((current) => current.map((item) => item._id === order._id ? { ...item, status, trackingUrl: trackingUrlDraft.trim() } : item));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to update order status.");
@@ -39,7 +39,7 @@ export function SellerOrdersTable() {
     setUpdatingOrderId(order._id);
     setError(null);
     try {
-      await updateSellerOrderStatus(order._id, undefined, trackingUrlDraft);
+      await updateSellerOrderStatus(sellerId, order._id, undefined, trackingUrlDraft);
       setOrders((current) => current.map((item) => item._id === order._id ? { ...item, trackingUrl: trackingUrlDraft.trim() } : item));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to save tracking link.");
@@ -52,7 +52,7 @@ export function SellerOrdersTable() {
     setIsLoading(true);
     setError(null);
     try {
-      setOrders(await getSellerOrders());
+      setOrders(await getSellerOrders(sellerId));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load seller orders.");
     } finally {
@@ -62,14 +62,14 @@ export function SellerOrdersTable() {
 
   useEffect(() => {
     let current = true;
-    getSellerOrders()
+    getSellerOrders(sellerId)
       .then((data) => { if (current) setOrders(data); })
       .catch((requestError) => {
         if (current) setError(requestError instanceof Error ? requestError.message : "Unable to load seller orders.");
       })
       .finally(() => { if (current) setIsLoading(false); });
     return () => { current = false; };
-  }, []);
+  }, [sellerId]);
 
   if (isLoading) return <div className="rounded-2xl border border-[#e1e4df] bg-white px-5 py-12 text-center text-sm text-[#788079]">Loading your orders…</div>;
 

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/lib/api/base-url";
+
 export type SavedOrderItem = {
   _id: string;
   userId: string;
@@ -26,7 +28,19 @@ export type SaveOrderItemPayload = {
   quantity: number;
 };
 
-const SAVED_ITEMS_API_URL = "/api/customer/saved-items";
+const SAVED_ITEMS_API_URL = `${API_BASE_URL}/customer-saved-items`;
+
+function customerHeaders(customerId: string, json = false) {
+  if (!customerId.trim()) {
+    const error = new Error("Customer ID is required to manage saved items.") as Error & { status?: number };
+    error.status = 401;
+    throw error;
+  }
+  return {
+    "x-customer-id": customerId,
+    ...(json ? { "Content-Type": "application/json" } : {}),
+  };
+}
 
 async function parseJsonResponse(response: Response) {
   const text = await response.text();
@@ -57,8 +71,8 @@ async function parseJsonResponse(response: Response) {
   return body;
 }
 
-export async function getSavedItems(): Promise<SavedOrderItem[]> {
-  const response = await fetch(SAVED_ITEMS_API_URL);
+export async function getSavedItems(customerId: string): Promise<SavedOrderItem[]> {
+  const response = await fetch(SAVED_ITEMS_API_URL, { headers: customerHeaders(customerId) });
   const body = await parseJsonResponse(response);
 
   if (
@@ -74,11 +88,12 @@ export async function getSavedItems(): Promise<SavedOrderItem[]> {
 }
 
 export async function saveItemForOrder(
+  customerId: string,
   payload: SaveOrderItemPayload,
 ): Promise<SavedOrderItem> {
   const response = await fetch(SAVED_ITEMS_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: customerHeaders(customerId, true),
     body: JSON.stringify(payload),
   });
 
@@ -91,10 +106,10 @@ export async function saveItemForOrder(
   return body.item as SavedOrderItem;
 }
 
-export async function removeSavedItem(itemId: string): Promise<void> {
+export async function removeSavedItem(customerId: string, itemId: string): Promise<void> {
   const response = await fetch(
-    `${SAVED_ITEMS_API_URL}?itemId=${encodeURIComponent(itemId)}`,
-    { method: "DELETE" },
+    `${SAVED_ITEMS_API_URL}/${encodeURIComponent(itemId)}`,
+    { method: "DELETE", headers: customerHeaders(customerId) },
   );
   await parseJsonResponse(response);
 }

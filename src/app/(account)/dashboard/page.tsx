@@ -47,5 +47,5 @@ async function DashboardContent() {
         ? "Customer"
         : "Member";
 
-  return <CustomerDashboard name={name} email={user.email} role={role} />;
+  return <CustomerDashboard customerId={user.id} name={name} email={user.email} role={role} />;
 }

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/lib/api/base-url";
+
 export type SellerOrderItem = {
   productId: string;
   name: string;
@@ -29,9 +31,18 @@ export type SellerOrder = {
 };
 
 export type SellerOrderStatus = "confirmed" | "rejected";
+const SELLER_ORDERS_API_URL = `${API_BASE_URL}/api/seller/orders`;
 
-export async function getSellerOrders(): Promise<SellerOrder[]> {
-  const response = await fetch("/api/seller/orders");
+function sellerHeaders(sellerId: string, json = false) {
+  if (!sellerId.trim()) throw new Error("Seller ID is required to manage orders.");
+  return {
+    "x-seller-id": sellerId,
+    ...(json ? { "Content-Type": "application/json" } : {}),
+  };
+}
+
+export async function getSellerOrders(sellerId: string): Promise<SellerOrder[]> {
+  const response = await fetch(SELLER_ORDERS_API_URL, { headers: sellerHeaders(sellerId) });
   const body: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -50,13 +61,14 @@ export async function getSellerOrders(): Promise<SellerOrder[]> {
 }
 
 export async function updateSellerOrderStatus(
+  sellerId: string,
   orderId: string,
   status?: SellerOrderStatus,
   trackingUrl?: string,
 ) {
-  const response = await fetch("/api/seller/orders", {
+  const response = await fetch(SELLER_ORDERS_API_URL, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: sellerHeaders(sellerId, true),
     body: JSON.stringify({ orderId, ...(status ? { status } : {}), ...(trackingUrl !== undefined ? { trackingUrl } : {}) }),
   });
   const body: unknown = await response.json().catch(() => null);

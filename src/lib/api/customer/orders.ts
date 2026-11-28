@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/lib/api/base-url";
+
 export type CustomerOrderItem = {
   productId: string;
   name: string;
@@ -43,7 +45,15 @@ export type PlaceOrderPayload = {
   paymentMethod: PaymentMethod;
 };
 
-const ORDERS_API_URL = "/api/customer/orders";
+const ORDERS_API_URL = `${API_BASE_URL}/api/orders`;
+
+function customerHeaders(customerId: string, json = false) {
+  if (!customerId.trim()) throw new Error("Customer ID is required to manage orders.");
+  return {
+    "x-customer-id": customerId,
+    ...(json ? { "Content-Type": "application/json" } : {}),
+  };
+}
 
 async function parseJsonResponse(response: Response) {
   const text = await response.text();
@@ -72,8 +82,8 @@ async function parseJsonResponse(response: Response) {
   return body;
 }
 
-export async function getCustomerOrders(): Promise<CustomerOrder[]> {
-  const response = await fetch(ORDERS_API_URL);
+export async function getCustomerOrders(customerId: string): Promise<CustomerOrder[]> {
+  const response = await fetch(ORDERS_API_URL, { headers: customerHeaders(customerId) });
   const body = await parseJsonResponse(response);
 
   if (
@@ -89,11 +99,12 @@ export async function getCustomerOrders(): Promise<CustomerOrder[]> {
 }
 
 export async function placeCustomerOrder(
+  customerId: string,
   payload: PlaceOrderPayload,
 ): Promise<CustomerOrder> {
   const response = await fetch(ORDERS_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: customerHeaders(customerId, true),
     body: JSON.stringify(payload),
   });
 
@@ -106,9 +117,11 @@ export async function placeCustomerOrder(
   return body.order as CustomerOrder;
 }
 
-export async function deleteCustomerOrder(orderId: string): Promise<void> {
-  const response = await fetch(`${ORDERS_API_URL}/${orderId}`, {
-    method: "DELETE",
+export async function cancelCustomerOrder(customerId: string, orderId: string): Promise<void> {
+  const response = await fetch(`${ORDERS_API_URL}/${encodeURIComponent(orderId)}`, {
+    method: "PATCH",
+    headers: customerHeaders(customerId, true),
+    body: JSON.stringify({ status: "cancelled" }),
   });
 
   await parseJsonResponse(response);

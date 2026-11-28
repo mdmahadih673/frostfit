@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/customer/saved-items";
 
 type CustomerCheckoutProps = {
+  customerId: string;
   defaultName: string;
   defaultEmail: string;
 };
@@ -70,6 +71,7 @@ function formatPrice(value: number) {
 }
 
 export function CustomerCheckout({
+  customerId,
   defaultName,
   defaultEmail,
 }: CustomerCheckoutProps) {
@@ -105,7 +107,7 @@ export function CustomerCheckout({
     setIsLoading(true);
     setLoadError(null);
     try {
-      setSavedItems(await getSavedItems());
+      setSavedItems(await getSavedItems(customerId));
     } catch (requestError) {
       setLoadError(
         requestError instanceof Error
@@ -120,7 +122,7 @@ export function CustomerCheckout({
   useEffect(() => {
     let isCurrent = true;
 
-    getSavedItems()
+    getSavedItems(customerId)
       .then((items) => {
         if (isCurrent) setSavedItems(items);
       })
@@ -140,7 +142,7 @@ export function CustomerCheckout({
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [customerId]);
 
   const checkoutItems = useMemo(() => {
     if (!requestedIds.length) return savedItems;
@@ -178,10 +180,11 @@ export function CustomerCheckout({
     setIsSubmitting(true);
 
     try {
-      await placeCustomerOrder({
+      await placeCustomerOrder(customerId, {
         savedItemIds: checkoutItems.map((item) => item._id),
         shippingAddress: {
           fullName: fullName.trim(),
+          email: defaultEmail,
           phone: phone.trim(),
           address: address.trim(),
           city: city.trim(),

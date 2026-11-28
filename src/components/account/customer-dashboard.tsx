@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { Navbar } from "@/components/home/navbar";
+import { CustomerAddressBook } from "@/components/account/customer-address-book";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  deleteCustomerOrder,
+  cancelCustomerOrder,
   getCustomerOrders,
   type CustomerOrder,
 } from "@/lib/api/customer/orders";
@@ -47,6 +48,7 @@ import {
 type CustomerTab = "overview" | "orders" | "saved" | "addresses";
 
 type CustomerDashboardProps = {
+  customerId: string;
   name: string;
   email: string;
   role: string;
@@ -92,6 +94,7 @@ function getTrackingHref(value?: string) {
 }
 
 export function CustomerDashboard({
+  customerId,
   name,
   email,
   role,
@@ -139,7 +142,7 @@ export function CustomerDashboard({
     setSavedError(null);
 
     try {
-      setSavedItems(await getSavedItems());
+      setSavedItems(await getSavedItems(customerId));
     } catch (requestError) {
       setSavedError(
         requestError instanceof Error
@@ -156,7 +159,7 @@ export function CustomerDashboard({
     setOrdersError(null);
 
     try {
-      setOrders(await getCustomerOrders());
+      setOrders(await getCustomerOrders(customerId));
     } catch (requestError) {
       setOrdersError(
         requestError instanceof Error
@@ -171,7 +174,7 @@ export function CustomerDashboard({
   useEffect(() => {
     let isCurrent = true;
 
-    getSavedItems()
+    getSavedItems(customerId)
       .then((items) => {
         if (isCurrent) setSavedItems(items);
       })
@@ -188,7 +191,7 @@ export function CustomerDashboard({
         if (isCurrent) setIsLoadingSaved(false);
       });
 
-    getCustomerOrders()
+    getCustomerOrders(customerId)
       .then((allOrders) => {
         if (isCurrent) setOrders(allOrders);
       })
@@ -208,7 +211,7 @@ export function CustomerDashboard({
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [customerId]);
 
   const validSelectedIds = useMemo(() => {
     const existingIds = new Set(savedItems.map((item) => item._id));
@@ -237,7 +240,7 @@ export function CustomerDashboard({
   const handleRemoveSavedItem = async (itemId: string) => {
     setRemovingItemId(itemId);
     try {
-      await removeSavedItem(itemId);
+      await removeSavedItem(customerId, itemId);
       setSavedItems((prev) => prev.filter((item) => item._id !== itemId));
       setSelectedIds((prev) => prev.filter((id) => id !== itemId));
     } catch (requestError) {
@@ -255,9 +258,9 @@ export function CustomerDashboard({
     setCancellingOrderId(orderId);
     setOrdersError(null);
     try {
-      await deleteCustomerOrder(orderId);
+      await cancelCustomerOrder(customerId, orderId);
       setOrders((currentOrders) =>
-        currentOrders.filter((order) => order._id !== orderId),
+        currentOrders.map((order) => order._id === orderId ? { ...order, status: "cancelled" } : order),
       );
       setOrderToCancel(null);
     } catch (cancelError) {
@@ -979,31 +982,7 @@ export function CustomerDashboard({
             </section>
           )}
 
-          {activeTab === "addresses" && (
-            <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-6 sm:p-8">
-              <p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">
-                Shipping
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] text-[#1d2c27]">
-                Delivery addresses
-              </h1>
-              <p className="body-6 mt-2 text-[#69736c]">
-                Manage your saved shipping destinations for faster checkout.
-              </p>
-              <div className="mt-6 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-14 text-center">
-                <MapPin
-                  aria-hidden="true"
-                  className="mx-auto size-8 text-[#9aa39c]"
-                />
-                <p className="mt-3 text-sm font-medium text-[#1d2c27]">
-                  No saved addresses
-                </p>
-                <p className="mt-1 text-sm text-[#788079]">
-                  Delivery addresses added during checkout will appear here.
-                </p>
-              </div>
-            </section>
-          )}
+          {activeTab === "addresses" && <CustomerAddressBook customerId={customerId} />}
         </main>
       </div>
 
