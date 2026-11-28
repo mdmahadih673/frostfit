@@ -37,6 +37,7 @@ import {
 import {
   cancelCustomerOrder,
   getCustomerOrders,
+  requestOrderReturn,
   type CustomerOrder,
 } from "@/lib/api/customer/orders";
 import {
@@ -121,6 +122,27 @@ export function CustomerDashboard({
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<CustomerOrder | null>(null);
+  const [returnOrderId, setReturnOrderId] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnBusyId, setReturnBusyId] = useState<string | null>(null);
+  const [returnError, setReturnError] = useState<string | null>(null);
+
+  const submitReturnRequest = async (order: CustomerOrder) => {
+    setReturnBusyId(order._id);
+    setReturnError(null);
+    try {
+      await requestOrderReturn(customerId, order._id, returnReason);
+      setOrders((current) => current.map((item) => item._id === order._id
+        ? { ...item, returnRequest: { status: "requested", reason: returnReason.trim(), requestedAt: new Date().toISOString() } }
+        : item));
+      setReturnOrderId(null);
+      setReturnReason("");
+    } catch (error) {
+      setReturnError(error instanceof Error ? error.message : "Unable to submit return request.");
+    } finally {
+      setReturnBusyId(null);
+    }
+  };
 
   const orderedJustNow = searchParams.get("ordered") === "1";
 
@@ -771,7 +793,17 @@ export function CustomerDashboard({
                                   <span className="whitespace-nowrap text-xs text-[#788079]">Tracking link pending</span>
                                 );
                               })()}
+                              {["delivered", "completed"].includes(order.status) && (order.returnRequest ? (
+                                <span className="whitespace-nowrap text-xs capitalize text-[#6a5a32]">Return: {order.returnRequest.status}</span>
+                              ) : (
+                                <button type="button" onClick={() => { setReturnOrderId(returnOrderId === order._id ? null : order._id); setReturnError(null); }} className="whitespace-nowrap text-left text-xs font-medium text-[#1d462b] underline underline-offset-2">Request return / refund</button>
+                              ))}
                             </div>
+                            {returnOrderId === order._id && !order.returnRequest && ["delivered", "completed"].includes(order.status) && <div className="mt-2 w-56 space-y-2">
+                              <textarea aria-label="Reason for return or refund" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} maxLength={300} placeholder="Tell us why you need a return or refund" className="w-full rounded-lg border border-[#d8ddd8] p-2 text-xs outline-none focus:border-[#536057]" />
+                              {returnError && <p className="text-xs text-[#a94e42]">{returnError}</p>}
+                              <button type="button" disabled={returnBusyId === order._id || returnReason.trim().length < 3} onClick={() => void submitReturnRequest(order)} className="rounded-full bg-[#1d2c27] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{returnBusyId === order._id ? "Sending…" : "Send request"}</button>
+                            </div>}
                           </td>
                         </tr>
                       ))}

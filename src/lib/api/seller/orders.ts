@@ -18,6 +18,7 @@ export type SellerOrder = {
   totalAmount: number;
   status: string;
   trackingUrl?: string;
+  returnRequest?: { status: string; reason: string; requestedAt: string; updatedAt?: string } | null;
   createdAt: string;
   paymentMethod: string;
   shippingAddress?: {
@@ -30,7 +31,7 @@ export type SellerOrder = {
   } | null;
 };
 
-export type SellerOrderStatus = "confirmed" | "rejected";
+export type SellerOrderStatus = "confirmed" | "rejected" | "delivered";
 const SELLER_ORDERS_API_URL = `${API_BASE_URL}/api/seller/orders`;
 
 function sellerHeaders(sellerId: string, json = false) {
@@ -78,6 +79,19 @@ export async function updateSellerOrderStatus(
       typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
         ? body.message
         : `Could not update order (${response.status}).`;
+    throw new Error(message);
+  }
+}
+
+export async function updateSellerReturnRequest(sellerId: string, orderId: string, returnStatus: "approved" | "rejected" | "refunded") {
+  const response = await fetch(SELLER_ORDERS_API_URL, {
+    method: "PATCH",
+    headers: sellerHeaders(sellerId, true),
+    body: JSON.stringify({ orderId, returnStatus }),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = typeof body === "object" && body !== null && "message" in body && typeof body.message === "string" ? body.message : `Could not update return request (${response.status}).`;
     throw new Error(message);
   }
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, Eye, RefreshCw, ShoppingBag, X } from "lucide-react";
 
-import { getSellerOrders, type SellerOrder, updateSellerOrderStatus } from "@/lib/api/seller/orders";
+import { getSellerOrders, type SellerOrder, updateSellerOrderStatus, updateSellerReturnRequest } from "@/lib/api/seller/orders";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -22,7 +22,7 @@ export function SellerOrdersTable({ sellerId }: { sellerId: string }) {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [trackingUrlDraft, setTrackingUrlDraft] = useState("");
 
-  const handleStatusUpdate = async (order: SellerOrder, status: "confirmed" | "rejected") => {
+  const handleStatusUpdate = async (order: SellerOrder, status: "confirmed" | "rejected" | "delivered") => {
     setUpdatingOrderId(order._id);
     setError(null);
     try {
@@ -43,6 +43,21 @@ export function SellerOrdersTable({ sellerId }: { sellerId: string }) {
       setOrders((current) => current.map((item) => item._id === order._id ? { ...item, trackingUrl: trackingUrlDraft.trim() } : item));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to save tracking link.");
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const handleReturnUpdate = async (order: SellerOrder, status: "approved" | "rejected" | "refunded") => {
+    setUpdatingOrderId(order._id);
+    setError(null);
+    try {
+      await updateSellerReturnRequest(sellerId, order._id, status);
+      setOrders((current) => current.map((item) => item._id === order._id && item.returnRequest
+        ? { ...item, returnRequest: { ...item.returnRequest, status, updatedAt: new Date().toISOString() } }
+        : item));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to update return request.");
     } finally {
       setUpdatingOrderId(null);
     }
@@ -113,6 +128,26 @@ export function SellerOrdersTable({ sellerId }: { sellerId: string }) {
           const selected = orders.find((item) => item._id === selectedOrder);
           if (!selected) return null;
           return <div className="border-t border-[#e9ece8] bg-[#fafbf9] p-5"><label htmlFor={`tracking-url-${selected._id}`} className="text-sm font-semibold text-[#1d2c27]">Shipment tracking link</label><p className="mt-1 text-xs text-[#788079]">Add the courier tracking URL. It will be saved to this order and shown to the customer.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input id={`tracking-url-${selected._id}`} type="url" inputMode="url" placeholder="https://courier.example/track/…" value={trackingUrlDraft} onChange={(event) => setTrackingUrlDraft(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-[#d8ddd8] bg-white px-3 py-2 text-sm text-[#1d2c27] outline-none focus:border-[#536057] focus:ring-2 focus:ring-[#e3e8e3]"/><button type="button" disabled={updatingOrderId === selected._id || trackingUrlDraft.trim() === (selected.trackingUrl || "")} onClick={() => void handleTrackingSave(selected)} className="button-sm rounded-full border border-[#d8ddd8] px-4 py-2 text-sm font-medium text-[#1d2c27] hover:bg-[#edf0ec] disabled:cursor-not-allowed disabled:opacity-50">{updatingOrderId === selected._id ? "Saving…" : "Save link"}</button></div></div>;
+        })() : null}
+        {selectedOrder ? (() => {
+          const order = orders.find((item) => item._id === selectedOrder);
+          if (order?.status !== "confirmed") return null;
+          return <div className="border-t border-[#e9ece8] bg-[#fafbf9] px-5 py-3 text-right">
+            <button type="button" disabled={updatingOrderId === order._id} onClick={() => void handleStatusUpdate(order, "delivered")} className="rounded-full bg-[#1d462b] px-4 py-2 text-xs font-medium text-white disabled:opacity-50">{updatingOrderId === order._id ? "Updating…" : "Mark delivered"}</button>
+          </div>;
+        })() : null}
+        {selectedOrder ? (() => {
+          const order = orders.find((item) => item._id === selectedOrder);
+          if (!order?.returnRequest) return null;
+          return <section className="border-t border-[#e9ece8] bg-[#fafbf9] p-5">
+            <p className="text-sm font-semibold text-[#1d2c27]">Return / refund · <span className="capitalize">{order.returnRequest.status}</span></p>
+            <p className="mt-1 text-sm text-[#536057]">Customer reason: {order.returnRequest.reason}</p>
+            {order.returnRequest.status === "requested" && <div className="mt-3 flex gap-2">
+              <button type="button" disabled={updatingOrderId === order._id} onClick={() => void handleReturnUpdate(order, "approved")} className="rounded-full bg-[#1d462b] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Approve</button>
+              <button type="button" disabled={updatingOrderId === order._id} onClick={() => void handleReturnUpdate(order, "rejected")} className="rounded-full border border-[#e3d2cf] px-3 py-1.5 text-xs font-medium text-[#9e3f33] disabled:opacity-50">Reject</button>
+            </div>}
+            {order.returnRequest.status === "approved" && <button type="button" disabled={updatingOrderId === order._id} onClick={() => void handleReturnUpdate(order, "refunded")} className="mt-3 rounded-full bg-[#1d462b] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Mark refunded</button>}
+          </section>;
         })() : null}
         {selectedOrder ? (() => {
           const order = orders.find((item) => item._id === selectedOrder);

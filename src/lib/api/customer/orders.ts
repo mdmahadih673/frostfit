@@ -35,6 +35,7 @@ export type CustomerOrder = {
   totalAmount: number;
   status: string;
   trackingUrl?: string;
+  returnRequest?: { status: string; reason: string; requestedAt: string; updatedAt?: string };
   createdAt: string;
   updatedAt: string;
 };
@@ -124,5 +125,14 @@ export async function cancelCustomerOrder(customerId: string, orderId: string): 
     body: JSON.stringify({ status: "cancelled" }),
   });
 
+  await parseJsonResponse(response);
+}
+
+export async function requestOrderReturn(customerId: string, orderId: string, reason: string): Promise<void> {
+  const response = await fetch(`${ORDERS_API_URL}/${encodeURIComponent(orderId)}`, {
+    method: "PATCH",
+    headers: customerHeaders(customerId, true),
+    body: JSON.stringify({ action: "request-return", reason }),
+  });
   await parseJsonResponse(response);
 }

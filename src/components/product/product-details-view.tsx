@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/product/get-seller-products";
 import { saveItemForOrder } from "@/lib/api/customer/saved-items";
 import { authClient } from "@/lib/auth-client";
+import { getProductReviews, saveProductReview, type ProductReviewSummary } from "@/lib/api/product/reviews";
 
 function formatPrice(value: number) {
   return value.toLocaleString(undefined, {
@@ -54,6 +55,40 @@ export function ProductDetailsView({ productId }: { productId: string }) {
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState<ProductReviewSummary | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+
+  useEffect(() => {
+    if (!product?._id) return;
+    let active = true;
+    getProductReviews(product._id).then((summary) => { if (active) setReviewSummary(summary); }).catch(() => { if (active) setReviewSummary(null); });
+    return () => { active = false; };
+  }, [product?._id]);
+
+  const handleReviewSubmit = async () => {
+    const customerId = session?.user.id;
+    if (!customerId) { setReviewMessage("Please sign in to leave a review."); return; }
+    if (!product) return;
+    setReviewBusy(true);
+    setReviewMessage("");
+    try {
+      const saved = await saveProductReview(customerId, product._id, reviewRating, reviewComment);
+      setReviewSummary((current) => {
+        const currentReviews = current?.reviews ?? [];
+        const reviews = [saved, ...currentReviews.filter((item) => item.customerId !== customerId)];
+        return { reviews, reviewCount: reviews.length, averageRating: reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length };
+      });
+      setReviewComment("");
+      setReviewMessage("Your review is saved.");
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : "Could not save your review.");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
 
   const loadProduct = async () => {
     setIsLoading(true);
@@ -700,6 +735,36 @@ export function ProductDetailsView({ productId }: { productId: string }) {
           </div>
         </div>
       </div>
+
+      <section className="mt-16 border-t border-[#e4e7e2] pt-10" aria-labelledby="reviews-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="caption-3 uppercase tracking-[0.16em] text-[#6f746e]">Customer feedback</p>
+            <h2 id="reviews-heading" className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#1d2c27]">Product reviews</h2>
+          </div>
+          <p className="text-sm text-[#536057]">{reviewSummary?.reviewCount ? `${reviewSummary.averageRating.toFixed(1)} / 5 · ${reviewSummary.reviewCount} review${reviewSummary.reviewCount === 1 ? "" : "s"}` : "No reviews yet"}</p>
+        </div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-3">
+            {reviewSummary?.reviews.map((review) => <article key={review._id} className="rounded-2xl border border-[#e3e6e1] bg-white p-4">
+              <div className="flex items-center justify-between gap-3"><p className="font-medium text-[#1d2c27]">{review.customerName}</p><p className="text-sm tracking-wider text-[#8a7448]" aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p></div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[#536057]">{review.comment}</p>
+              <p className="mt-3 text-xs text-[#788079]">{formatDate(review.updatedAt)}</p>
+            </article>)}
+            {!reviewSummary?.reviews.length && <p className="rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-8 text-sm text-[#788079]">Be the first to share your experience after your order is delivered.</p>}
+          </div>
+          <div className="h-fit rounded-2xl border border-[#e3e6e1] bg-white p-5">
+            <h3 className="font-semibold text-[#1d2c27]">Write a review</h3>
+            <p className="mt-1 text-xs text-[#788079]">Reviews are available to customers with a delivered order.</p>
+            <label htmlFor="review-rating" className="mt-4 block text-xs font-medium text-[#536057]">Rating</label>
+            <select id="review-rating" value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-[#d8ddd8] bg-white px-3 py-2 text-sm text-[#1d2c27]"><option value={5}>5 — Excellent</option><option value={4}>4 — Good</option><option value={3}>3 — Average</option><option value={2}>2 — Poor</option><option value={1}>1 — Very poor</option></select>
+            <label htmlFor="review-comment" className="mt-3 block text-xs font-medium text-[#536057]">Your experience</label>
+            <textarea id="review-comment" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} maxLength={1500} rows={4} placeholder="What did you think of this product?" className="mt-1 w-full resize-y rounded-xl border border-[#d8ddd8] px-3 py-2 text-sm outline-none focus:border-[#536057]" />
+            {reviewMessage && <p className="mt-2 text-xs text-[#536057]">{reviewMessage}</p>}
+            <button type="button" disabled={reviewBusy || reviewComment.trim().length < 3} onClick={() => void handleReviewSubmit()} className="mt-3 w-full rounded-full bg-[#1d2c27] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#344a42] disabled:cursor-not-allowed disabled:opacity-50">{reviewBusy ? "Saving…" : "Submit review"}</button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
