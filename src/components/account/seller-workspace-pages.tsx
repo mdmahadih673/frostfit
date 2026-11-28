@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, CircleAlert, PackagePlus, WalletCards } from "lucide-react";
+import { ArrowLeft, CircleAlert, PackagePlus, WalletCards } from "lucide-react";
 
 import { SellerAddProductForm } from "./seller-add-product-form";
 import { SellerProductsTable } from "./seller-products-table";
 import { SellerOrdersTable } from "./seller-orders-table";
 import { SellerSettingsForm } from "./seller-settings-form";
+import { SellerAnalyticsDashboard } from "./seller-analytics-dashboard";
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
   return (
@@ -78,34 +79,11 @@ export function SellerOrdersPage({ sellerId }: { sellerId: string }) {
   );
 }
 
-export function SellerAnalyticsPage() {
+export function SellerAnalyticsPage({ sellerId }: { sellerId: string }) {
   return (
     <div className="space-y-7">
       <PageHeading eyebrow="Performance" title="Analytics" description="Understand how your products and store are performing." />
-      <PreviewNotice>Analytics will show real numbers after product, order, and traffic tracking are connected.</PreviewNotice>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {["Gross sales", "Orders", "Conversion rate", "Store visits"].map((metric) => (
-          <article key={metric} className="rounded-2xl border border-[#e1e4df] bg-[#f9faf8] p-5">
-            <p className="text-sm text-[#788079]">{metric}</p>
-            <p className="mt-4 text-3xl font-semibold text-[#1d2c27]">—</p>
-            <p className="mt-1 text-xs text-[#89918b]">No data available</p>
-          </article>
-        ))}
-      </div>
-      <section className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">Store performance</p>
-            <h2 className="mt-2 text-xl font-semibold text-[#1d2c27]">Sales over time</h2>
-          </div>
-          <button type="button" disabled className="h-9 rounded-full border border-[#d6dbd6] px-3 text-sm text-[#9aa39c] disabled:cursor-not-allowed">Last 30 days</button>
-        </div>
-        <div className="mt-5 flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 text-center">
-          <BarChart3 aria-hidden="true" className="size-8 text-[#9aa39c]" />
-          <p className="mt-3 text-sm font-medium text-[#1d2c27]">No performance data yet</p>
-          <p className="mt-1 text-sm text-[#788079]">Your sales chart will appear after your store starts receiving orders.</p>
-        </div>
-      </section>
+      <SellerAnalyticsDashboard sellerId={sellerId} />
     </div>
   );
 }
