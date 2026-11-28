@@ -103,6 +103,7 @@ export function AdminDashboard({ name, email, adminId }: { name: string; email: 
             </div>
             <nav aria-label="Admin dashboard" className="mt-4 space-y-1">
               <a href="#overview" className="flex min-h-10 items-center gap-2 rounded-xl bg-[#edf0ec] px-3 py-2 text-sm font-medium text-[#1d2c27]"><Store aria-hidden="true" className="size-4" /> Overview</a>
+              <a href="#pending-reviews" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><Clock3 aria-hidden="true" className="size-4" /> <span className="flex-1">Pending reviews</span><span className="rounded-full bg-[#f4efe3] px-2 py-0.5 text-xs font-medium text-[#806a37]">{pendingCount}</span></a>
               <a href="#catalog" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><Boxes aria-hidden="true" className="size-4" /> Catalog health</a>
               <a href="#recent-listings" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><PackageSearch aria-hidden="true" className="size-4" /> Recent listings</a>
             </nav>
@@ -137,7 +138,7 @@ export function AdminDashboard({ name, email, adminId }: { name: string; email: 
               </article>)}
             </section>
 
-            <section aria-labelledby="pending-review-heading" className="rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
+            <section id="pending-reviews" aria-labelledby="pending-review-heading" className="scroll-mt-28 rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 sm:p-7">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div><p className="caption-3 uppercase tracking-[0.14em] text-[#788079]">Seller submissions</p><h2 id="pending-review-heading" className="mt-2 text-xl font-semibold text-[#1d2c27]">Pending product review</h2><p className="mt-1 text-sm text-[#788079]">Approve listings for the storefront or send the seller a clear reason.</p></div>
                 <span className="rounded-full bg-[#f4efe3] px-3 py-1.5 text-xs font-medium text-[#806a37]">{isLoading ? "…" : pendingCount} waiting</span>
