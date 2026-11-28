@@ -8,5 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default function SignInPage() {
-  return <SignInForm />;
+  const showDemoAccounts = process.env.NODE_ENV !== "production" && process.env.DEMO_SIGN_IN_ENABLED === "true";
+  return <SignInForm showDemoAccounts={showDemoAccounts} />;
 }

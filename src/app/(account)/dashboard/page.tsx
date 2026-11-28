@@ -35,7 +35,7 @@ async function DashboardContent() {
   if (user.role === USER_ROLES.seller) {
     return (
       <SellerDashboardLayout>
-        <SellerDashboardOverview name={name} email={user.email} />
+        <SellerDashboardOverview name={name} email={user.email} sellerId={user.id} />
       </SellerDashboardLayout>
     );
   }

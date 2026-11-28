@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { signInWithDemoAccount, type DemoAccountRole } from "@/lib/api/auth/demo-sign-in";
 
 import { FormField, inputClassName, submitButtonClassName } from "./form-field";
 import { PasswordInput } from "./password-input";
 
-export function SignInForm() {
+export function SignInForm({ showDemoAccounts = false }: { showDemoAccounts?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,20 @@ export function SignInForm() {
           ? signInError.message
           : "Could not sign in. Please try again.",
       );
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function handleDemoSignIn(role: DemoAccountRole) {
+    setError(null);
+    setIsPending(true);
+    try {
+      await signInWithDemoAccount(role);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (signInError) {
+      setError(signInError instanceof Error ? signInError.message : "Could not sign in with this demo account.");
     } finally {
       setIsPending(false);
     }
@@ -99,6 +114,31 @@ export function SignInForm() {
           {isPending ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      {showDemoAccounts && <div className="mt-6">
+        <div className="relative flex items-center" aria-hidden="true">
+          <span className="h-px flex-1 bg-[#e4e7e2]" />
+          <span className="px-3 text-xs text-[#8a8f89]">Or continue as</span>
+          <span className="h-px flex-1 bg-[#e4e7e2]" />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {([
+            ["customer", "Customer"],
+            ["seller", "Seller"],
+            ["admin", "Admin"],
+          ] as const).map(([role, label]) => (
+            <button
+              key={role}
+              type="button"
+              disabled={isPending}
+              onClick={() => void handleDemoSignIn(role)}
+              className="rounded-full border border-[#d8ddd8] bg-white px-2 py-2.5 text-sm font-medium text-[#1d2c27] transition hover:border-[#1d2c27] hover:bg-[#f1f3f0] disabled:cursor-wait disabled:opacity-50"
+            >
+              {isPending ? "Signing in…" : label}
+            </button>
+          ))}
+        </div>
+      </div>}
 
       {error ? (
         <p role="alert" aria-live="polite" className="body-6 mt-5 rounded-2xl border border-[#b3261e]/30 bg-[#b3261e]/5 px-4 py-3 text-[#b3261e]">
