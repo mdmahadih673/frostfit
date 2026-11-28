@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRight, ArrowUpRight, Boxes, Check, CircleCheck, Clock3, PackageSearch, RefreshCw, ShieldCheck, Store, X } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowUpRight, Boxes, Check, CircleCheck, Clock3, PackageSearch, RefreshCw, ShieldCheck, Store, Users, X } from "lucide-react";
 
 import { Navbar } from "@/components/home/navbar";
+import { AdminUsersManagement } from "@/components/account/admin-users-management";
 import { getAdminProducts, reviewSellerProduct } from "@/lib/api/admin/products";
 import type { SellerProduct } from "@/lib/api/product/get-seller-products";
 
@@ -104,6 +105,7 @@ export function AdminDashboard({ name, email, adminId }: { name: string; email: 
             <nav aria-label="Admin dashboard" className="mt-4 space-y-1">
               <a href="#overview" className="flex min-h-10 items-center gap-2 rounded-xl bg-[#edf0ec] px-3 py-2 text-sm font-medium text-[#1d2c27]"><Store aria-hidden="true" className="size-4" /> Overview</a>
               <a href="#pending-reviews" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><Clock3 aria-hidden="true" className="size-4" /> <span className="flex-1">Pending reviews</span><span className="rounded-full bg-[#f4efe3] px-2 py-0.5 text-xs font-medium text-[#806a37]">{pendingCount}</span></a>
+              <a href="#users" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><Users aria-hidden="true" className="size-4" /> Users</a>
               <a href="#catalog" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><Boxes aria-hidden="true" className="size-4" /> Catalog health</a>
               <a href="#recent-listings" className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#626b64] transition hover:bg-[#edf0ec] hover:text-[#1d2c27]"><PackageSearch aria-hidden="true" className="size-4" /> Recent listings</a>
             </nav>
@@ -176,6 +178,8 @@ export function AdminDashboard({ name, email, adminId }: { name: string; email: 
                 {isLoading ? <p className="py-12 text-center text-sm text-[#788079]">Loading status…</p> : products.length ? <div className="mt-6 space-y-5">{statuses.map(({ label, count, color }) => <div key={label}><div className="flex items-center justify-between text-sm"><span className="text-[#536057]">{label}</span><span className="font-medium text-[#1d2c27]">{count} <span className="font-normal text-[#89918b]">/ {products.length}</span></span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7eae6]"><div className={`h-full rounded-full ${color}`} style={{ width: `${Math.round((count / products.length) * 100)}%` }} /></div></div>)}<div className="rounded-2xl bg-[#edf0ec] p-4"><p className="text-xs leading-5 text-[#536057]">Pending products are listed above for review. Rejected products remain visible to their seller with the reason.</p></div></div> : <div className="mt-5 rounded-2xl border border-dashed border-[#cbd2cc] bg-white px-5 py-10 text-center"><p className="text-sm text-[#788079]">Catalog status will appear when products are listed.</p></div>}
               </article>
             </section>
+
+            <AdminUsersManagement adminId={adminId} />
 
             <section className="grid gap-4 sm:grid-cols-2">
               <Link href="/all-products" className="flex items-center justify-between gap-4 rounded-3xl border border-[#e1e4df] bg-[#f9faf8] p-5 transition hover:border-[#1d2c27] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d2c27]"><span className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-[#edf0ec]"><Store aria-hidden="true" className="size-5" /></span><span><span className="block text-sm font-semibold">View storefront catalog</span><span className="mt-1 block text-xs text-[#788079]">See products as customers see them</span></span></span><ArrowUpRight aria-hidden="true" className="size-4 text-[#788079]" /></Link>
